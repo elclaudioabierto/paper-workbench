@@ -24,6 +24,7 @@ const icons = {
   rewrite: "↗",
   markdown: "M↓",
   presentation: "▰",
+  letter: "L",
 };
 const state = {
   projects: [],
@@ -91,6 +92,8 @@ function draft() {
     instructions: "",
     wordLimit: 250,
     structure: "Journal appropriate",
+    letterType: "Response to reviewers",
+    recipient: "",
   });
 }
 function readDraft() {
@@ -98,6 +101,8 @@ function readDraft() {
   if ($("#instructions")) d.instructions = $("#instructions").value;
   if ($("#word-limit")) d.wordLimit = Number($("#word-limit").value);
   if ($("#structure")) d.structure = $("#structure").value;
+  if ($("#letter-type")) d.letterType = $("#letter-type").value;
+  if ($("#letter-recipient")) d.recipient = $("#letter-recipient").value;
 }
 function render() {
   const p = state.project;
@@ -116,7 +121,7 @@ function viewHTML() {
   return overviewHTML();
 }
 function onboardingHTML() {
-  return `<div class="onboarding"><div class="eyebrow">From first draft to final response</div><h1>Papers.<br>Work in progress.</h1><div class="intro"><p>Manuscripts, six workflows, and a complete record of what you ran.</p><button class="primary" data-action="new-project">Create your first project ↗</button></div><div class="grid">${Object.entries(
+  return `<div class="onboarding"><div class="eyebrow">From first draft to final response</div><h1>Papers.<br>Work in progress.</h1><div class="intro"><p>Manuscripts, seven workflows, and a complete record of what you ran.</p><button class="primary" data-action="new-project">Create your first project ↗</button></div><div class="grid">${Object.entries(
     state.workflows,
   )
     .map(([id, w], i) => card(id, w, i, true))
@@ -147,7 +152,11 @@ function workflowHTML() {
   const w = state.workflows[state.workflow],
     d = draft(),
     runs = state.runs.filter((r) => r.workflow === state.workflow);
-  return `<div class="heading-row"><div><div class="eyebrow">${esc(w.eyebrow)}</div><h1>${esc(w.title)}</h1><p class="muted">${esc(w.description)}</p></div><button class="small secondary" data-action="navigate" data-view="overview">← All workflows</button></div><div class="workspace-grid"><div class="panel workflow-form"><h3>Source documents</h3><p class="help">Only selected text versions are sent to Codex.</p>${state.documents.map((doc) => `<label class="doc-select"><input type="checkbox" data-document="${doc.id}" ${state.selected.has(doc.id) ? "checked" : ""}><span>${esc(doc.name)}<br><small>${esc(doc.role)} · v${doc.version} · ${words(doc.text).toLocaleString()} words</small></span></label>`).join("") || '<button class="small" data-action="navigate" data-view="documents">Add a manuscript ↗</button>'}${state.workflow === "abstract" ? `<div class="inline-fields">${field("Word limit", "word-limit", d.wordLimit, 'type="number" min="50" max="3000"')}<div><label for="structure">Structure</label><select id="structure">${["Journal appropriate", "Structured", "Unstructured"].map((s) => `<option ${d.structure === s ? "selected" : ""}>${s}</option>`).join("")}</select></div></div>` : ""}<label for="instructions">${state.workflow === "revision" ? "Revision priorities" : state.workflow === "rewrite" ? "Scope & rewrite instructions" : state.workflow === "journal" ? "Journal preferences & constraints" : "Additional instructions"}</label><textarea id="instructions" rows="5" placeholder="${state.workflow === "journal" ? "e.g. Digital health audience, no mandatory APC, accepts observational research" : state.workflow === "rewrite" ? "e.g. Rewrite the introduction and discussion; preserve all citation markers" : state.workflow === "revision" ? "e.g. Prioritize Reviewer 2’s concerns about causal language" : "e.g. Emphasize the clinical implications; use cautious language"}">${esc(d.instructions)}</textarea><label for="run-model">Model</label><select id="run-model">${modelOptions()}</select><label for="run-effort">Reasoning effort</label><select id="run-effort">${effortOptions()}</select><div class="run-controls"><span class="help">${state.account ? "Connected to Codex" : "Sign in under Settings"}</span><button class="primary" data-action="start-run" ${state.active || !state.account || !state.documents.length ? "disabled" : ""}>Run workflow ↗</button></div><p class="help">A new run preserves its prompt, sources, settings, events, and result. ${state.workflow === "journal" ? "Live web search is enabled for journal research." : ""}</p></div><div class="panel output-panel"><div class="output-toolbar"><h3>Working draft</h3><select class="run-picker" id="run-picker"><option value="">${runs.length ? "Choose a run" : "No runs yet"}</option>${runs.map((r) => `<option value="${r.id}" ${r.id === state.runId ? "selected" : ""}>${date(r.startedAt)} · ${r.status}</option>`).join("")}</select></div><div id="output-area"></div><div class="output-footer">Generated work needs your review. Original run outputs remain unchanged; reviewed drafts can be saved as project documents.</div></div></div>`;
+  return `<div class="heading-row"><div><div class="eyebrow">${esc(w.eyebrow)}</div><h1>${esc(w.title)}</h1><p class="muted">${esc(w.description)}</p></div><button class="small secondary" data-action="navigate" data-view="overview">← All workflows</button></div><div class="workspace-grid"><div class="panel workflow-form"><h3>Source documents</h3><p class="help">Only selected text versions are sent to Codex.</p>${state.documents.map((doc) => `<label class="doc-select"><input type="checkbox" data-document="${doc.id}" ${state.selected.has(doc.id) ? "checked" : ""}><span>${esc(doc.name)}<br><small>${esc(doc.role)} · v${doc.version} · ${words(doc.text).toLocaleString()} words</small></span></label>`).join("") || '<button class="small" data-action="navigate" data-view="documents">Add a manuscript ↗</button>'}${state.workflow === "abstract" ? `<div class="inline-fields">${field("Word limit", "word-limit", d.wordLimit, 'type="number" min="50" max="3000"')}<div><label for="structure">Structure</label><select id="structure">${["Journal appropriate", "Structured", "Unstructured"].map((s) => `<option ${d.structure === s ? "selected" : ""}>${s}</option>`).join("")}</select></div></div>` : ""}${letterFields(d)}<label for="instructions">${state.workflow === "revision" ? "Revision priorities" : state.workflow === "rewrite" ? "Scope & rewrite instructions" : state.workflow === "journal" ? "Journal preferences & constraints" : "Additional instructions"}</label><textarea id="instructions" rows="5" placeholder="${state.workflow === "journal" ? "e.g. Digital health audience, no mandatory APC, accepts observational research" : state.workflow === "rewrite" ? "e.g. Rewrite the introduction and discussion; preserve all citation markers" : state.workflow === "revision" ? "e.g. Prioritize Reviewer 2’s concerns about causal language" : "e.g. Emphasize the clinical implications; use cautious language"}">${esc(d.instructions)}</textarea><label for="run-model">Model</label><select id="run-model">${modelOptions()}</select><label for="run-effort">Reasoning effort</label><select id="run-effort">${effortOptions()}</select><div class="run-controls"><span class="help">${state.account ? "Connected to Codex" : "Sign in under Settings"}</span><button class="primary" data-action="start-run" ${state.active || !state.account || !state.documents.length ? "disabled" : ""}>Run workflow ↗</button></div><p class="help">A new run preserves its prompt, sources, settings, events, and result. ${state.workflow === "journal" ? "Live web search is enabled for journal research." : ""}</p></div><div class="panel output-panel"><div class="output-toolbar"><h3>Working draft</h3><select class="run-picker" id="run-picker"><option value="">${runs.length ? "Choose a run" : "No runs yet"}</option>${runs.map((r) => `<option value="${r.id}" ${r.id === state.runId ? "selected" : ""}>${date(r.startedAt)} · ${r.status}</option>`).join("")}</select></div><div id="output-area"></div><div class="output-footer">Generated work needs your review. Original run outputs remain unchanged; reviewed drafts can be saved as project documents.</div></div></div>`;
+}
+function letterFields(d) {
+  if (state.workflow !== "letter") return "";
+  return `<label for="letter-type">Letter type</label><select id="letter-type">${["Editor cover letter", "Response to reviewers", "Resubmission letter to editor"].map((type) => `<option ${type === (d.letterType || "Response to reviewers") ? "selected" : ""}>${type}</option>`).join("")}</select>${field("Recipient (optional)", "letter-recipient", d.recipient || "", 'placeholder="e.g. Dr. Smith, Editor"')}<p class="help">Include reviews and revision notes for a response or resubmission letter. Unverified declarations and changes stay as author-confirmation placeholders.</p>`;
 }
 function modelOptions() {
   return state.models.length
@@ -577,7 +586,16 @@ document.addEventListener("change", (event) => {
     state.effort = el.value;
     normalizeEffort();
   }
-  if (["instructions", "word-limit", "structure"].includes(el.id)) readDraft();
+  if (
+    [
+      "instructions",
+      "word-limit",
+      "structure",
+      "letter-type",
+      "letter-recipient",
+    ].includes(el.id)
+  )
+    readDraft();
 });
 window.workbench.onEvent(async ({ type, data }) => {
   if (type === "run") {

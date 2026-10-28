@@ -4,6 +4,8 @@ An Electron desktop workspace for academic manuscripts, powered by a locally ins
 
 ## Workflows
 
+- **Letter to reviewers / editor:** choose an editor cover letter, a point-by-point reviewer response, or a resubmission letter. Set the recipient and use manuscript/reviewer/revision sources; undocumented changes and declarations remain explicit author-confirmation placeholders.
+
 - **Convert to Markdown:** faithfully convert the complete paper, retaining captions in the body, with blank Markdown tables and local figure placeholders. Export a ZIP with editable Markdown and generated SVG placeholder assets.
 - **PowerPoint from paper:** create an editable summary-first deck, then examine missing/underreported evidence and overstated claims, with grounded speaker notes and a real `.pptx` export.
 
@@ -12,7 +14,7 @@ An Electron desktop workspace for academic manuscripts, powered by a locally ins
 - **Prepare a revision:** organize reviewer comments into an action plan, response matrix, response letter, and checklist.
 - **Prepare a rewrite:** propose substantive text changes, record the rationale, and flag questions requiring author verification.
 
-All six support additional instructions, explicit source selection, model and reasoning-effort selection, streaming output, cancellation, and a separate record for each attempt. Review generated work before using it.
+All seven support additional instructions, explicit source selection, model and reasoning-effort selection, streaming output, cancellation, and a separate record for each attempt. Review generated work before using it.
 
 ## Run
 
@@ -64,7 +66,7 @@ npm run test:ui
 npm run package -- --publish never
 ```
 
-The UI test launches Electron with isolated temporary project storage and a **fake Codex protocol process**, and covers device sign-in, import/versioning, all six workflows, streaming, cancellation, rendering sanitization, draft adoption, and audit export. It does not spend model tokens. On a headless system use `xvfb-run -a npm run test:ui`. Test screenshots are written to ignored `test-artifacts/`.
+The UI test launches Electron with isolated temporary project storage and a **fake Codex protocol process**, and covers device sign-in, import/versioning, all seven workflows, streaming, cancellation, rendering sanitization, draft adoption, and audit export. It does not spend model tokens. On a headless system use `xvfb-run -a npm run test:ui`. Test screenshots are written to ignored `test-artifacts/`.
 
 The release workflow builds Linux AppImages for version tags. Dependencies are pinned by `package-lock.json`. AppImages are unsigned. macOS and Windows distributions are not built in this release.
 

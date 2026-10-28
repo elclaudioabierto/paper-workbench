@@ -195,3 +195,23 @@ test("long slide content is split without dropping text", () => {
   assert.equal(deck.slides.flatMap((s) => s.bullets).length, 14);
   assert.ok(deck.slides.every((s) => s.notes === "Source notes."));
 });
+test("all letter types preserve recipient, sources and correspondence safeguards", (t) => {
+  const { p, d } = fixture(t);
+  const { LETTER_TYPES } = require("../src/workflows.cjs");
+  for (const letterType of LETTER_TYPES) {
+    const result = buildPrompt(p, [d], "letter", {
+      letterType,
+      recipient: "Dr. Example",
+      instructions: "Answer Reviewer 2 respectfully.",
+    });
+    assert.equal(result.settings.letterType, letterType);
+    assert.equal(result.settings.recipient, "Dr. Example");
+    assert.ok(result.prompt.includes("AUTHOR TO CONFIRM"));
+    assert.ok(result.prompt.includes("Do not send the letter"));
+    assert.ok(result.prompt.includes(d.text));
+  }
+  assert.throws(
+    () => buildPrompt(p, [d], "letter", { letterType: "Unsupported" }),
+    /supported letter type/,
+  );
+});
