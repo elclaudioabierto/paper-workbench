@@ -1,6 +1,15 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
+if (process.platform === "darwin") {
+  // Finder launches with a minimal PATH; include common CLI install locations.
+  process.env.PATH = [
+    process.env.PATH || "",
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    path.join(app.getPath("home"), ".local", "bin"),
+  ].join(path.delimiter);
+}
 const { Store, hash } = require("./store.cjs");
 const { Codex } = require("./codex.cjs");
 const { workflows, buildPrompt, BASE } = require("./workflows.cjs");
@@ -417,8 +426,8 @@ else {
     win = new BrowserWindow({
       width: 1460,
       height: 960,
-      minWidth: 1050,
-      minHeight: 720,
+      minWidth: 480,
+      minHeight: 480,
       title: "Paper Workbench",
       icon: path.join(__dirname, "icon.png"),
       icon: path.join(__dirname, "icon.png"),

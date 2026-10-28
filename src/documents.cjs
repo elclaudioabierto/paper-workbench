@@ -8,7 +8,14 @@ async function extract(file) {
   const ext = path.extname(file).toLowerCase();
   let text;
   if (ext === ".docx")
-    text = (await require("mammoth").extractRawText({ buffer })).value;
+    text = docxHtmlToText(
+      (
+        await require("mammoth").convertToHtml({
+          buffer,
+          convertImage: require("mammoth").images.imgElement(() => ({})),
+        })
+      ).value,
+    );
   else if (ext === ".pdf") {
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const pdf = await pdfjs.getDocument({
@@ -41,6 +48,63 @@ async function extract(file) {
     sourceSha256: createHash("sha256").update(buffer).digest("hex"),
   };
 }
+function docxHtmlToText(html) {
+  const { DOMParser } = require("@xmldom/xmldom");
+  const root = new DOMParser().parseFromString(
+    `<root>${html}</root>`,
+    "text/xml",
+  ).documentElement;
+  function contents(node) {
+    if (node.nodeType === 3) return node.data;
+    if (node.nodeType !== 1) return "";
+    if (node.tagName === "br") return "\n";
+    return Array.from(node.childNodes).map(contents).join("");
+  }
+  function blocks(node) {
+    if (node.nodeType !== 1) return node.nodeType === 3 ? node.data : "";
+    if (node.tagName === "br") return "\n";
+    if (node.tagName === "table") {
+      const rows = Array.from(node.getElementsByTagName("tr"))
+        .map((row) =>
+          Array.from(row.childNodes)
+            .filter((c) => c.nodeType === 1 && ["td", "th"].includes(c.tagName))
+            .map((cell) => {
+              const span = [
+                cell.getAttribute("rowspan") > 1
+                  ? `rowspan ${cell.getAttribute("rowspan")}`
+                  : "",
+                cell.getAttribute("colspan") > 1
+                  ? `colspan ${cell.getAttribute("colspan")}`
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(", ");
+              return (
+                contents(cell)
+                  .trim()
+                  .replace(/\s*\n\s*/g, " ") + (span ? ` [${span}]` : "")
+              ).replace(/\|/g, "\\|");
+            }),
+        )
+        .filter((row) => row.length);
+      if (!rows.length) return "";
+      const width = Math.max(...rows.map((row) => row.length));
+      const line = (row) =>
+        `| ${Array.from({ length: width }, (_, i) => row[i] || "").join(" | ")} |`;
+      return `\n\n${line(rows[0])}\n${line(Array(width).fill("---"))}${rows
+        .slice(1)
+        .map((row) => `\n${line(row)}`)
+        .join("")}\n\n`;
+    }
+    const result = Array.from(node.childNodes).map(blocks).join("");
+    return ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"].includes(
+      node.tagName,
+    )
+      ? `${result}\n\n`
+      : result;
+  }
+  return blocks(root).trim();
+}
 async function exportDocx(text) {
   const {
     Document,
@@ -48,20 +112,71 @@ async function exportDocx(text) {
     Paragraph,
     TextRun,
     HeadingLevel,
+    Table,
+    TableRow,
+    TableCell,
   } = require("docx");
-  const children = text.split("\n").map((line) => {
+  const tokens = require("markdown-it")().parse(text, {});
+  const tables = new Map();
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i].type !== "table_open") continue;
+    const start = tokens[i].map[0],
+      end = tokens[i].map[1],
+      rows = [];
+    let row;
+    for (i++; i < tokens.length && tokens[i].type !== "table_close"; i++) {
+      if (tokens[i].type === "tr_open") row = [];
+      else if (tokens[i].type === "inline")
+        row.push(
+          tokens[i].children
+            .map((t) =>
+              t.type === "text" || t.type === "code_inline"
+                ? t.content
+                : t.type === "softbreak" || t.type === "hardbreak"
+                  ? " "
+                  : "",
+            )
+            .join(""),
+        );
+      else if (tokens[i].type === "tr_close") rows.push(row);
+    }
+    tables.set(start, { end, rows });
+  }
+  const children = [];
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (tables.has(i)) {
+      const table = tables.get(i);
+      children.push(
+        new Table({
+          rows: table.rows.map(
+            (row) =>
+              new TableRow({
+                children: row.map(
+                  (cell) => new TableCell({ children: [new Paragraph(cell)] }),
+                ),
+              }),
+          ),
+        }),
+      );
+      i = table.end - 1;
+      continue;
+    }
+    const line = lines[i];
     const heading = line.match(/^(#{1,3})\s+(.+)/);
-    return new Paragraph({
-      heading: heading
-        ? [
-            HeadingLevel.HEADING_1,
-            HeadingLevel.HEADING_2,
-            HeadingLevel.HEADING_3,
-          ][heading[1].length - 1]
-        : undefined,
-      children: [new TextRun(heading ? heading[2] : line)],
-    });
-  });
+    children.push(
+      new Paragraph({
+        heading: heading
+          ? [
+              HeadingLevel.HEADING_1,
+              HeadingLevel.HEADING_2,
+              HeadingLevel.HEADING_3,
+            ][heading[1].length - 1]
+          : undefined,
+        children: [new TextRun(heading ? heading[2] : line)],
+      }),
+    );
+  }
   return Packer.toBuffer(new Document({ sections: [{ children }] }));
 }
 function placeholderSvg(number) {

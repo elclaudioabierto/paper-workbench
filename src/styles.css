@@ -997,3 +997,133 @@ details {
 .onboarding h1 {
   font-weight: 700;
 }
+
+/* Compact windows */
+.menu-toggle,
+.workflow-jumps {
+  display: none;
+}
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sidebar {
+    display: none;
+    position: fixed;
+    z-index: 5;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(270px, 85vw);
+    overflow: auto;
+    border-right: 1px solid var(--line);
+    box-shadow: 4px 0 18px #0003;
+  }
+  .layout.menu-open .sidebar {
+    display: flex;
+  }
+  .menu-toggle {
+    display: block;
+    flex-shrink: 0;
+  }
+  .topbar {
+    justify-content: flex-start;
+    padding: 0 16px;
+    gap: 10px;
+  }
+  .topbar .actions {
+    margin-left: auto;
+  }
+  .topbar .pill {
+    display: none;
+  }
+  .breadcrumb {
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .breadcrumb span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .content {
+    padding: 22px 16px;
+  }
+  .workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workflow-jumps {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .output-panel {
+    min-height: 0;
+  }
+  .output-body {
+    min-height: 220px;
+    max-height: none;
+    padding: 18px;
+  }
+  .output-body table {
+    max-width: 100%;
+  }
+  .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  dialog {
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+  }
+  .modal-body {
+    padding: 20px;
+  }
+  .modal-footer {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 600px) {
+  .grid,
+  .detail-meta,
+  .inline-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .heading-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .heading-row h1 {
+    font-size: 26px;
+  }
+  .onboarding {
+    margin: 15px auto;
+  }
+  .onboarding h1 {
+    font-size: 36px;
+  }
+  .topbar {
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .topbar .actions {
+    margin-left: 0;
+  }
+  .doc-card {
+    flex-wrap: wrap;
+  }
+  .audit-event {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+}
+.menu-close {
+  display: none !important;
+}
+@media (max-width: 900px) {
+  .sidebar .menu-close {
+    display: block !important;
+    margin-bottom: 12px;
+  }
+}

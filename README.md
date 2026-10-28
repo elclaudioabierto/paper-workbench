@@ -22,9 +22,11 @@ All nine support additional instructions, explicit source selection, model and r
 
 ## Run
 
-Requires Linux x86_64 and a recent [Codex CLI](https://learn.chatgpt.com/docs/app-server) on `PATH` (developed against 0.165.0), with access to a supported model. The CLI is not bundled. Install it with `npm install -g @openai/codex` if needed.
+Requires Linux x86_64 or macOS (Apple Silicon or Intel) and a recent [Codex CLI](https://learn.chatgpt.com/docs/app-server) on `PATH` (developed against 0.165.0), with access to a supported model. The CLI is not bundled. Install it with `npm install -g @openai/codex` if needed.
 
 Download the AppImage from GitHub Releases, make it executable, and run it. Systems without FUSE can use `./Paper-Workbench-0.1.0-x86_64.AppImage --appimage-extract-and-run` (substitute the actual downloaded filename). The unpacked Linux tarball is another option; extract it and run `paper-workbench`.
+
+On macOS, download the DMG for your processor (`arm64` for Apple Silicon, `x64` for Intel) and drag the app to Applications. The macOS builds are unsigned and not notarized, so macOS may block them; use Privacy & Security settings to allow an app you trust. Finder starts with a limited PATH; common Homebrew and ~/.local/bin locations are included. If Codex was installed elsewhere, launch the app executable from a terminal where `codex` works, for example `"/Applications/Paper Workbench.app/Contents/MacOS/Paper Workbench"`.
 
 From source (Node.js 24+):
 
@@ -39,11 +41,11 @@ Create a project, add a manuscript, optionally add reviewer comments, guidelines
 
 ## Documents and results
 
-Import DOCX, text-based PDF, Markdown, or plain text. Imports extract text, not layout, figures, tracked changes, or comments. Review extracted text before running. Scanned PDFs need OCR outside this app. Source files are identified by SHA-256; extracted text and all saved text versions are retained in the project. Imports do not copy the original binary files.
+Import DOCX, text-based PDF, Markdown, or plain text. DOCX tables are extracted as Markdown tables with their cell text and row order; the first row is represented as a Markdown header. Merged cells are marked with span information, but complex layouts, nested tables, and formatting may not transfer faithfully. Imports extract text, not layout, figures, tracked changes, or comments. Review extracted text against the original before running. Scanned PDFs need OCR outside this app. Source files are identified by SHA-256; extracted text and all saved text versions are retained in the project. Imports do not copy the original binary files.
 
 Each save creates a version. Previous text can be restored as a new version. Sources are explicitly selected per workflow. Oversized context is rejected rather than silently truncated (600,000 characters per complete prompt).
 
-Results can be exported as Markdown, plain text, DOCX, a Markdown ZIP with SVG figure placeholders, or editable PowerPoint. The slide exporter uses the workflow’s numbered slide headings, bullet points, and speaker-note sections, splitting long slides into continuation slides rather than dropping content. DOCX export preserves text and headings; complex Markdown tables and list markers remain text. **Review & save** creates a separate editable supporting document, leaving the original run output unchanged. Use that document's role selector to turn a reviewed rewrite into a manuscript source for later runs. Outputs are proposals; the app never submits to journals or changes your original source files.
+Results can be exported as Markdown, plain text, DOCX, a Markdown ZIP with SVG figure placeholders, or editable PowerPoint. The slide exporter uses the workflow’s numbered slide headings, bullet points, and speaker-note sections, splitting long slides into continuation slides rather than dropping content. DOCX export converts standard Markdown tables to editable Word tables; complex formatting, merged cells, and list markers are not preserved. **Review & save** creates a separate editable supporting document, leaving the original run output unchanged. Use that document's role selector to turn a reviewed rewrite into a manuscript source for later runs. Outputs are proposals; the app never submits to journals or changes your original source files.
 
 ## Audit trail
 
@@ -72,7 +74,7 @@ npm run package -- --publish never
 
 The UI test launches Electron with isolated temporary project storage and a **fake Codex protocol process**, and covers device sign-in, import/versioning, all nine workflows, streaming, cancellation, rendering sanitization, draft adoption, and audit export. It does not spend model tokens. On a headless system use `xvfb-run -a npm run test:ui`. Test screenshots are written to ignored `test-artifacts/`.
 
-The release workflow builds Linux AppImages for version tags. Dependencies are pinned by `package-lock.json`. AppImages are unsigned. macOS and Windows distributions are not built in this release.
+The release workflow builds Linux AppImages and unsigned macOS DMG and ZIP files for version tags. Dependencies are pinned by `package-lock.json`. macOS builds are not notarized; Windows distributions are not built.
 
 Test-only environment overrides: `PAPER_WORKBENCH_DATA`, `PAPER_WORKBENCH_CODEX`, and JSON-array `PAPER_WORKBENCH_CODEX_ARGS`.
 

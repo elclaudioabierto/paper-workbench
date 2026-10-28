@@ -1,7 +1,7 @@
 {
   "name": "paper-workbench",
   "productName": "Paper Workbench",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A local manuscript workbench powered by Codex, with a durable project audit trail.",
   "main": "src/main.cjs",
   "scripts": {
@@ -11,9 +11,11 @@
     "check": "node --check src/main.cjs && node --check src/store.cjs && node --check src/codex.cjs && node --check src/workflows.cjs && node --check src/renderer.js",
     "package": "electron-builder --linux AppImage --linux dir",
     "format": "prettier --write src test package.json README.md .github",
-    "test:live": "node test/live.cjs"
+    "test:live": "node test/live.cjs",
+    "package:mac": "electron-builder --mac dmg zip --x64 --arm64"
   },
   "dependencies": {
+    "@xmldom/xmldom": "^0.8.15",
     "docx": "^9.5.1",
     "dompurify": "^3.4.17",
     "fflate": "^0.8.3",
@@ -43,7 +45,14 @@
       "syncDesktopName": true,
       "icon": "src/icon.png"
     },
-    "artifactName": "Paper-Workbench-${version}-${arch}.${ext}"
+    "artifactName": "Paper-Workbench-${version}-${arch}.${ext}",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    }
   },
   "overrides": {
     "image-size": "^2.0.4"

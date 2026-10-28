@@ -158,6 +158,53 @@ test("DOCX export imports back as readable manuscript text", async (t) => {
   assert.ok(d.text.includes("A study of 50 participants."));
   assert.equal(d.sourceSha256.length, 64);
 });
+test("Word tables retain cells and order through Markdown import and Word export", async (t) => {
+  const {
+    Document,
+    Packer,
+    Paragraph,
+    Table,
+    TableRow,
+    TableCell,
+  } = require("docx");
+  const { extract, exportDocx } = require("../src/documents.cjs");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "paper-tables-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const file = path.join(root, "table.docx");
+  const cell = (text) => new TableCell({ children: [new Paragraph(text)] });
+  fs.writeFileSync(
+    file,
+    await Packer.toBuffer(
+      new Document({
+        sections: [
+          {
+            children: [
+              new Paragraph("Before"),
+              new Table({
+                rows: [
+                  new TableRow({ children: [cell("Measure"), cell("Value")] }),
+                  new TableRow({ children: [cell("A | B"), cell("42")] }),
+                ],
+              }),
+              new Paragraph("After"),
+            ],
+          },
+        ],
+      }),
+    ),
+  );
+  const imported = (await extract(file)).text;
+  assert.match(
+    imported,
+    /Before[\s\S]*\| Measure \| Value \|[\s\S]*\| A \\\| B \| 42 \|[\s\S]*After/,
+  );
+  fs.writeFileSync(file, await exportDocx(imported));
+  const html = (await require("mammoth").convertToHtml({ path: file })).value;
+  assert.match(
+    html,
+    /<table>[\s\S]*<td><p>A \| B<\/p><\/td>[\s\S]*<td><p>42<\/p><\/td>[\s\S]*<\/table>/,
+  );
+});
 test("Markdown bundle includes matching SVG figures, blank tables and body captions", () => {
   const { markdownBundle } = require("../src/documents.cjs");
   const { unzipSync, strFromU8 } = require("fflate");

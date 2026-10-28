@@ -24,6 +24,7 @@ const assert = require("node:assert/strict");
     env,
   });
   const page = await app.firstWindow();
+  await page.setViewportSize({ width: 1200, height: 900 });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => {
@@ -234,6 +235,35 @@ const assert = require("node:assert/strict");
         .every((r) => r.events.length && r.tokenUsage),
     );
     await page.screenshot({ path: path.join(artifacts, "audit.png") });
+    await page.setViewportSize({ width: 600, height: 520 });
+    const menu = page.getByRole("button", { name: "☰ Menu" });
+    await menu.click();
+    assert.equal(await menu.getAttribute("aria-expanded"), "true");
+    await page.getByRole("button", { name: "Close menu" }).click();
+    assert.equal(await menu.getAttribute("aria-expanded"), "false");
+    await menu.click();
+    await page.getByRole("button", { name: "Workbench", exact: false }).click();
+    await page.getByRole("button", { name: /Craft an abstract/ }).click();
+    assert.equal(await page.locator(".workflow-jumps").isVisible(), true);
+    await page.getByRole("button", { name: "Results ↓" }).click();
+    assert.equal(
+      await page.evaluate(() => document.activeElement.id),
+      "workflow-results",
+    );
+    assert.equal(
+      await page.evaluate(
+        () =>
+          document.querySelector(".content").scrollWidth <=
+          document.querySelector(".content").clientWidth,
+      ),
+      true,
+    );
+    await page.getByRole("button", { name: "Project settings" }).click();
+    assert.equal(
+      await page.getByRole("button", { name: "Save settings" }).isVisible(),
+      true,
+    );
+    await page.getByRole("button", { name: "Cancel" }).click();
     assert.deepEqual(errors, []);
     console.log(
       "PASS: device sign-in; project settings; text import/edit/version; file import; all nine workflows; streaming; Markdown sanitization; draft adoption; stop; run details; full audit export.",

@@ -69,7 +69,7 @@ class Codex extends EventEmitter {
       clientInfo: {
         name: "paper_workbench",
         title: "Paper Workbench",
-        version: "0.1.0",
+        version: require("../package.json").version,
       },
       capabilities: { experimentalApi: false },
     });
