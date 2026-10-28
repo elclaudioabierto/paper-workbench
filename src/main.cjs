@@ -420,7 +420,7 @@ else {
       title: "Paper Workbench",
       icon: path.join(__dirname, "icon.png"),
       icon: path.join(__dirname, "icon.png"),
-      backgroundColor: "#f7f5f0",
+      backgroundColor: "#ffffff",
       autoHideMenuBar: true,
       webPreferences: {
         preload: path.join(__dirname, "preload.cjs"),

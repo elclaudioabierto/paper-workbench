@@ -90,11 +90,11 @@ async function exportPptx(markdown) {
   };
   deck.slides.forEach((content, i) => {
     const slide = pptx.addSlide();
-    slide.background = { color: "F7F5F0" };
+    slide.background = { color: "FFFFFF" };
     const critique = /missing|overstat|gap|limitation|claim/i.test(
       content.title,
     );
-    const accent = critique ? "C35935" : "386557";
+    const accent = critique ? "111111" : "111111";
     slide.addShape(pptx.ShapeType.rect, {
       x: 0,
       y: 0,
@@ -126,7 +126,7 @@ async function exportPptx(markdown) {
       h: 1.08,
       fontSize: 30,
       bold: false,
-      color: "24342C",
+      color: "111111",
       margin: 0,
       breakLine: false,
       fit: "shrink",
@@ -136,7 +136,7 @@ async function exportPptx(markdown) {
       y: 2.15,
       w: 11.8,
       h: 0,
-      line: { color: "D8DDD1", width: 1 },
+      line: { color: "BBBBBB", width: 1 },
     });
     const length = content.bullets.reduce((n, b) => n + b.length, 0);
     const fontSize = length > 700 ? 18 : length > 450 ? 20 : 23;
@@ -157,7 +157,7 @@ async function exportPptx(markdown) {
         h: 3.85,
         fontFace: "Aptos",
         fontSize,
-        color: "374238",
+        color: "222222",
         margin: 0,
         breakLine: false,
         valign: "top",
@@ -169,7 +169,7 @@ async function exportPptx(markdown) {
       w: 10.6,
       h: 0.2,
       fontSize: 9,
-      color: "858D80",
+      color: "666666",
       margin: 0,
       fit: "shrink",
     });

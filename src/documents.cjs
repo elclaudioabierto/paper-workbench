@@ -65,7 +65,7 @@ async function exportDocx(text) {
   return Packer.toBuffer(new Document({ sections: [{ children }] }));
 }
 function placeholderSvg(number) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675"><rect x="2" y="2" width="1196" height="671" rx="12" fill="#f5f4ee" stroke="#b8bcb2" stroke-width="2" stroke-dasharray="12 8"/><path d="M490 395l75-90 55 55 40-40 65 75z" fill="none" stroke="#a1aaa0" stroke-width="5"/><circle cx="675" cy="265" r="21" fill="#a1aaa0"/><text x="600" y="480" text-anchor="middle" fill="#677265" font-family="sans-serif" font-size="26">Figure ${Number(number)} placeholder</text><text x="600" y="520" text-anchor="middle" fill="#899085" font-family="sans-serif" font-size="18">Replace with the final figure. Caption stays in the manuscript.</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675"><rect x="2" y="2" width="1196" height="671" rx="12" fill="#ffffff" stroke="#111111" stroke-width="2" stroke-dasharray="12 8"/><path d="M490 395l75-90 55 55 40-40 65 75z" fill="none" stroke="#777777" stroke-width="5"/><circle cx="675" cy="265" r="21" fill="#777777"/><text x="600" y="480" text-anchor="middle" fill="#111111" font-family="sans-serif" font-size="26">Figure ${Number(number)} placeholder</text><text x="600" y="520" text-anchor="middle" fill="#666666" font-family="sans-serif" font-size="18">Replace with the final figure. Caption stays in the manuscript.</text></svg>`;
 }
 function markdownBundle(text) {
   const { zipSync, strToU8 } = require("fflate");
