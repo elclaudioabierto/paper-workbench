@@ -20,6 +20,8 @@ An Electron desktop workspace for academic manuscripts, powered by a locally ins
 
 All nine support additional instructions, explicit source selection, model and reasoning-effort selection, streaming output, cancellation, and a separate record for each attempt. Review generated work before using it.
 
+Use **Create workflow** on the workbench to add your own title, prompt, optional description, and dropdowns. Enter one dropdown per line, such as `Audience | Experts | General readers`; the first option is the default. The selected values are included in the run prompt. You can optionally enable live web research and edit your workflow later. Custom workflows live in the local library and are available to all projects on that computer; changes apply to future runs, while existing runs retain their exact prompt, selected values, and workflow revision. The project audit export contains the run records, but does not back up the editable custom workflow definitions; back up `custom-workflows.json` in the library separately.
+
 ## Run
 
 Requires Linux x86_64 or macOS (Apple Silicon or Intel) and a recent [Codex CLI](https://learn.chatgpt.com/docs/app-server) on `PATH` (developed against 0.165.0), with access to a supported model. The CLI is not bundled. Install it with `npm install -g @openai/codex` if needed.

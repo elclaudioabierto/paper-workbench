@@ -235,6 +235,53 @@ const assert = require("node:assert/strict");
         .every((r) => r.events.length && r.tokenUsage),
     );
     await page.screenshot({ path: path.join(artifacts, "audit.png") });
+    await page.getByRole("button", { name: "Workbench", exact: false }).click();
+    await page.getByRole("button", { name: "Create workflow" }).click();
+    await page.getByRole("button", { name: "Save workflow" }).click();
+    await page.locator("#custom-workflow-error").waitFor();
+    await page.locator("#custom-title").fill("Plain-language summary");
+    await page
+      .locator("#custom-prompt")
+      .fill("Summarize the paper for the chosen audience.");
+    await page
+      .locator("#custom-dropdowns")
+      .fill("Audience | Experts | Public\nTone | Formal | Friendly");
+    await page.getByRole("button", { name: "Save workflow" }).click();
+    await page
+      .locator(".workflow-card")
+      .filter({ hasText: "Plain-language summary" })
+      .click();
+    await page.getByLabel("Audience").selectOption("Public");
+    await page.getByLabel("Tone").selectOption("Friendly");
+    await page.getByRole("button", { name: "Run workflow" }).click();
+    await page
+      .locator("#output-area .status.completed")
+      .waitFor({ timeout: 20000 });
+    const customRun = await page.evaluate(async () => {
+      const { projects } = await window.workbench.invoke("bootstrap");
+      return window.workbench.invoke("runDetail", {
+        projectId: projects[0].id,
+        runId: document.querySelector("#run-picker").value,
+      });
+    });
+    assert.deepEqual(customRun.run.settings.customChoices, [
+      { label: "Audience", value: "Public" },
+      { label: "Tone", value: "Friendly" },
+    ]);
+    await page.getByRole("button", { name: "Edit workflow" }).click();
+    await page.locator("#custom-prompt").fill("Write a shorter summary.");
+    await page.getByRole("button", { name: "Save workflow" }).click();
+    await page.reload();
+    await page
+      .locator(".workflow-card")
+      .filter({ hasText: "Plain-language summary" })
+      .click();
+    await page.getByRole("button", { name: "Edit workflow" }).click();
+    assert.equal(
+      await page.locator("#custom-prompt").inputValue(),
+      "Write a shorter summary.",
+    );
+    await page.getByRole("button", { name: "Cancel" }).click();
     await page.setViewportSize({ width: 600, height: 520 });
     const menu = page.getByRole("button", { name: "☰ Menu" });
     await menu.click();

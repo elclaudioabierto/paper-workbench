@@ -104,6 +104,9 @@ function draft() {
 }
 function readDraft() {
   const d = draft();
+  d.customChoices = [...document.querySelectorAll("[data-custom-choice]")].map(
+    (el) => el.value,
+  );
   if ($("#instructions")) d.instructions = $("#instructions").value;
   if ($("#word-limit")) d.wordLimit = Number($("#word-limit").value);
   if ($("#structure")) d.structure = $("#structure").value;
@@ -133,7 +136,7 @@ function viewHTML() {
   return overviewHTML();
 }
 function onboardingHTML() {
-  return `<div class="onboarding"><div class="eyebrow">From first draft to final response</div><h1>Papers.<br>Work in progress.</h1><div class="intro"><p>Manuscripts, ${Object.keys(state.workflows).length} workflows, and a complete record of what you ran.</p><button class="primary" data-action="new-project">Create your first project ↗</button></div><div class="grid">${Object.entries(
+  return `<div class="onboarding"><div class="eyebrow">From first draft to final response</div><h1>Papers.<br>Work in progress.</h1><div class="intro"><p>Manuscripts, ${Object.keys(state.workflows).length} workflows, and a complete record of what you ran.</p><button class="primary" data-action="new-project">Create your first project ↗</button></div><button class="secondary" data-action="new-custom-workflow">＋ Create workflow</button><div class="grid">${Object.entries(
     state.workflows,
   )
     .map(([id, w], i) => card(id, w, i, true))
@@ -142,11 +145,11 @@ function onboardingHTML() {
     )}</div><p class="help onboarding-note">Connect your Codex account in Settings. Manuscripts stay in your local library; selected source text is sent to Codex when you run a workflow.</p></div>`;
 }
 function card(id, w, i, disabled = false) {
-  return `<button class="workflow-card" data-action="workflow" data-id="${id}" ${disabled ? "disabled" : ""}><div class="card-top"><span class="workflow-icon">${icons[id]}</span><span class="card-number">0${i + 1} / WORKFLOW</span></div><h2>${esc(w.title)}</h2><p>${esc(w.description)}</p><span class="arrow">↗</span></button>`;
+  return `<button class="workflow-card" data-action="workflow" data-id="${id}" ${disabled ? "disabled" : ""}><div class="card-top"><span class="workflow-icon">${icons[id] || "✦"}</span><span class="card-number">0${i + 1} / WORKFLOW</span></div><h2>${esc(w.title)}</h2><p>${esc(w.description)}</p><span class="arrow">↗</span></button>`;
 }
 function overviewHTML() {
   const p = state.project;
-  return `<div class="intro"><div class="eyebrow">Project workspace</div><h1>Manuscript workbench.</h1><p>Choose a workflow. Every run is saved with its sources and output.</p></div><div class="stats"><span><strong>${state.documents.length}</strong> source documents</span><span><strong>${state.runs.length}</strong> workflow runs</span><span>Target: <strong>${esc(p.journal || "Not selected yet")}</strong></span></div>${!state.documents.length ? '<div class="note">Start by adding your manuscript. You can also include reviewer comments, journal guidelines, and supporting notes. <button class="text-button" data-action="navigate" data-view="documents">Add documents ↗</button></div>' : ""}<div class="grid">${Object.entries(
+  return `<div class="intro"><div class="eyebrow">Project workspace</div><h1>Manuscript workbench.</h1><p>Choose a workflow. Every run is saved with its sources and output.</p></div><div class="stats"><span><strong>${state.documents.length}</strong> source documents</span><span><strong>${state.runs.length}</strong> workflow runs</span><span>Target: <strong>${esc(p.journal || "Not selected yet")}</strong></span></div>${!state.documents.length ? '<div class="note">Start by adding your manuscript. You can also include reviewer comments, journal guidelines, and supporting notes. <button class="text-button" data-action="navigate" data-view="documents">Add documents ↗</button></div>' : ""}<button class="secondary" data-action="new-custom-workflow">＋ Create workflow</button><div class="grid">${Object.entries(
     state.workflows,
   )
     .map(([id, w], i) => card(id, w, i))
@@ -155,7 +158,7 @@ function overviewHTML() {
     )}</div><div class="section-title"><h3>Recent work</h3><button class="text-button" data-action="navigate" data-view="history">View all runs ↗</button></div>${state.runs.length ? state.runs.slice(0, 4).map(runRow).join("") : '<div class="empty"><p>Your first workflow will appear here, together with its sources and results.</p></div>'}`;
 }
 function runRow(r) {
-  return `<button class="run-row" data-action="run-detail" data-id="${r.id}"><div><strong>${esc(state.workflows[r.workflow]?.title || r.workflow)}</strong><small>${date(r.startedAt)} · ${esc(r.resolvedModel || r.model)} · ${r.sourceDocuments.length} source${r.sourceDocuments.length === 1 ? "" : "s"}</small></div>${status(r)}</button>`;
+  return `<button class="run-row" data-action="run-detail" data-id="${r.id}"><div><strong>${esc(r.workflowTitle || state.workflows[r.workflow]?.title || r.workflow)}</strong><small>${date(r.startedAt)} · ${esc(r.resolvedModel || r.model)} · ${r.sourceDocuments.length} source${r.sourceDocuments.length === 1 ? "" : "s"}</small></div>${status(r)}</button>`;
 }
 function documentsHTML() {
   return `<div class="heading-row"><div><div class="eyebrow">The source of truth</div><h1>Project documents</h1><p class="muted">Import a file or paste text. Every save creates a version.</p></div><div class="actions"><button data-action="import-dialog">Import files</button><button class="primary" data-action="new-document">＋ Paste text</button></div></div><div class="document-grid">${state.documents.map((d) => `<div class="doc-card"><div class="file-icon">▤</div><div><h3>${esc(d.name)}</h3><p>${esc({ manuscript: "Manuscript", reviews: "Reviewer comments", guidelines: "Journal guidelines", notes: "Supporting notes" }[d.role])} · ${words(d.text).toLocaleString()} words · Version ${d.version} · ${date(d.updatedAt)}</p></div><div class="actions"><button class="small" data-action="versions" data-id="${d.id}">Versions</button><button class="small" data-action="edit-document" data-id="${d.id}">Open</button></div></div>`).join("") || '<div class="empty"><h2>Add source documents.</h2><p>Add DOCX, PDF, Markdown, or plain-text files. Include the manuscript and any materials you want Codex to consider.</p><button class="primary" data-action="import-dialog">Import your manuscript</button></div>'}</div><div class="note">DOCX and PDF imports extract text; original layout, figures, comments, and tracked changes are not preserved. Review the extracted text before running. Scanned PDFs need OCR. Source-file hashes and every text version are recorded.</div>`;
@@ -164,7 +167,24 @@ function workflowHTML() {
   const w = state.workflows[state.workflow],
     d = draft(),
     runs = state.runs.filter((r) => r.workflow === state.workflow);
-  return `<div class="heading-row"><div><div class="eyebrow">${esc(w.eyebrow)}</div><h1>${esc(w.title)}</h1><p class="muted">${esc(w.description)}</p></div><button class="small secondary" data-action="navigate" data-view="overview">← All workflows</button></div><div class="workflow-jumps" aria-label="Workflow sections"><button class="small" data-action="jump-setup">Setup</button><button class="small" data-action="jump-results">Results ↓</button></div><div class="workspace-grid"><div class="panel workflow-form" id="workflow-setup"><h3>Source documents</h3><p class="help">Only selected text versions are sent to Codex.</p>${state.documents.map((doc) => `<label class="doc-select"><input type="checkbox" data-document="${doc.id}" ${state.selected.has(doc.id) ? "checked" : ""}><span>${esc(doc.name)}<br><small>${esc(doc.role)} · v${doc.version} · ${words(doc.text).toLocaleString()} words</small></span></label>`).join("") || '<button class="small" data-action="navigate" data-view="documents">Add a manuscript ↗</button>'}${state.workflow === "abstract" ? `<div class="inline-fields">${field("Word limit", "word-limit", d.wordLimit, 'type="number" min="50" max="3000"')}<div><label for="structure">Structure</label><select id="structure">${["Journal appropriate", "Structured", "Unstructured"].map((s) => `<option ${d.structure === s ? "selected" : ""}>${s}</option>`).join("")}</select></div></div>` : ""}${preflightFields(d)}${reviewerFields(d)}${letterFields(d)}<label for="instructions">${state.workflow === "revision" ? "Revision priorities" : state.workflow === "rewrite" ? "Scope & rewrite instructions" : state.workflow === "journal" ? "Journal preferences & constraints" : "Additional instructions"}</label><textarea id="instructions" rows="5" placeholder="${state.workflow === "journal" ? "e.g. Digital health audience, no mandatory APC, accepts observational research" : state.workflow === "rewrite" ? "e.g. Rewrite the introduction and discussion; preserve all citation markers" : state.workflow === "revision" ? "e.g. Prioritize Reviewer 2’s concerns about causal language" : "e.g. Emphasize the clinical implications; use cautious language"}">${esc(d.instructions)}</textarea><label for="run-model">Model</label><select id="run-model">${modelOptions()}</select><label for="run-effort">Reasoning effort</label><select id="run-effort">${effortOptions()}</select><div class="run-controls"><span class="help">${state.account ? "Connected to Codex" : "Sign in under Settings"}</span><button class="primary" data-action="start-run" ${state.active || !state.account || !state.documents.length ? "disabled" : ""}>Run workflow ↗</button></div><p class="help">A new run preserves its prompt, sources, settings, events, and result. ${["journal", "preflight", "reviewers"].includes(state.workflow) ? "Live web research is enabled for this workflow." : ""}</p></div><div class="panel output-panel" id="workflow-results" tabindex="-1"><div class="output-toolbar"><h3>Working draft</h3><select class="run-picker" id="run-picker"><option value="">${runs.length ? "Choose a run" : "No runs yet"}</option>${runs.map((r) => `<option value="${r.id}" ${r.id === state.runId ? "selected" : ""}>${date(r.startedAt)} · ${r.status}</option>`).join("")}</select></div><div id="output-area"></div><div class="output-footer">Generated work needs your review. Original run outputs remain unchanged; reviewed drafts can be saved as project documents.</div></div></div>`;
+  return `<div class="heading-row"><div><div class="eyebrow">${esc(w.eyebrow)}</div><h1>${esc(w.title)}</h1><p class="muted">${esc(w.description)}</p></div><div class="actions">${w.custom ? '<button class="small" data-action="edit-custom-workflow">Edit workflow</button>' : ""}<button class="small secondary" data-action="navigate" data-view="overview">← All workflows</button></div></div><div class="workflow-jumps" aria-label="Workflow sections"><button class="small" data-action="jump-setup">Setup</button><button class="small" data-action="jump-results">Results ↓</button></div><div class="workspace-grid"><div class="panel workflow-form" id="workflow-setup"><h3>Source documents</h3><p class="help">Only selected text versions are sent to Codex.</p>${state.documents.map((doc) => `<label class="doc-select"><input type="checkbox" data-document="${doc.id}" ${state.selected.has(doc.id) ? "checked" : ""}><span>${esc(doc.name)}<br><small>${esc(doc.role)} · v${doc.version} · ${words(doc.text).toLocaleString()} words</small></span></label>`).join("") || '<button class="small" data-action="navigate" data-view="documents">Add a manuscript ↗</button>'}${state.workflow === "abstract" ? `<div class="inline-fields">${field("Word limit", "word-limit", d.wordLimit, 'type="number" min="50" max="3000"')}<div><label for="structure">Structure</label><select id="structure">${["Journal appropriate", "Structured", "Unstructured"].map((s) => `<option ${d.structure === s ? "selected" : ""}>${s}</option>`).join("")}</select></div></div>` : ""}${customFields(w, d)}${preflightFields(d)}${reviewerFields(d)}${letterFields(d)}<label for="instructions">${state.workflow === "revision" ? "Revision priorities" : state.workflow === "rewrite" ? "Scope & rewrite instructions" : state.workflow === "journal" ? "Journal preferences & constraints" : "Additional instructions"}</label><textarea id="instructions" rows="5" placeholder="${state.workflow === "journal" ? "e.g. Digital health audience, no mandatory APC, accepts observational research" : state.workflow === "rewrite" ? "e.g. Rewrite the introduction and discussion; preserve all citation markers" : state.workflow === "revision" ? "e.g. Prioritize Reviewer 2’s concerns about causal language" : "e.g. Emphasize the clinical implications; use cautious language"}">${esc(d.instructions)}</textarea><label for="run-model">Model</label><select id="run-model">${modelOptions()}</select><label for="run-effort">Reasoning effort</label><select id="run-effort">${effortOptions()}</select><div class="run-controls"><span class="help">${state.account ? "Connected to Codex" : "Sign in under Settings"}</span><button class="primary" data-action="start-run" ${state.active || !state.account || !state.documents.length ? "disabled" : ""}>Run workflow ↗</button></div><p class="help">A new run preserves its prompt, sources, settings, events, and result. ${["journal", "preflight", "reviewers"].includes(state.workflow) || w.webSearch ? "Live web research is enabled for this workflow." : ""}</p></div><div class="panel output-panel" id="workflow-results" tabindex="-1"><div class="output-toolbar"><h3>Working draft</h3><select class="run-picker" id="run-picker"><option value="">${runs.length ? "Choose a run" : "No runs yet"}</option>${runs.map((r) => `<option value="${r.id}" ${r.id === state.runId ? "selected" : ""}>${date(r.startedAt)} · ${r.status}</option>`).join("")}</select></div><div id="output-area"></div><div class="output-footer">Generated work needs your review. Original run outputs remain unchanged; reviewed drafts can be saved as project documents.</div></div></div>`;
+}
+function customFields(w, d) {
+  if (!w.custom) return "";
+  return w.fields
+    .map(
+      (f, i) =>
+        `<label for="custom-choice-${i}">${esc(f.label)}</label><select id="custom-choice-${i}" data-custom-choice>${f.options.map((option) => `<option value="${esc(option)}" ${option === d.customChoices?.[i] ? "selected" : ""}>${esc(option)}</option>`).join("")}</select>`,
+    )
+    .join("");
+}
+function customWorkflowModal(w = {}) {
+  const dropdowns = (w.fields || [])
+    .map((f) => [f.label, ...f.options].join(" | "))
+    .join("\n");
+  showModal(
+    `<h2>${w.custom ? "Edit workflow" : "Create workflow"}</h2><p class="help">Available in every project on this computer. Changes affect future runs; previous runs keep their original prompt and choices.</p>${field("Title", "custom-title", w.title || "", 'maxlength="100"')}${field("Description (optional)", "custom-description", w.description || "", 'maxlength="300"')}<label for="custom-prompt">Workflow prompt</label><textarea id="custom-prompt" rows="7" placeholder="Describe what the workflow should do.">${esc(w.instruction || "")}</textarea><label for="custom-dropdowns">Dropdowns (optional)</label><textarea id="custom-dropdowns" rows="5" placeholder="Audience | Academic | General\nTone | Formal | Plain language">${esc(dropdowns)}</textarea><p class="help">One dropdown per line: label, then choices separated by |. The first choice is the default. Selected values are included in the prompt under customChoices.</p><label class="doc-select"><input id="custom-web" type="checkbox" ${w.webSearch ? "checked" : ""}> Enable live web research</label><div class="modal-footer"><button data-action="close-modal">Cancel</button><button class="primary" data-action="save-custom-workflow" data-id="${esc(w.id || "")}">Save workflow</button></div>`,
+  );
 }
 function preflightFields(d) {
   if (state.workflow !== "preflight") return "";
@@ -244,7 +264,7 @@ function auditHTML() {
 function detailHTML() {
   const r = currentRun();
   if (!r) return '<div class="empty">Run not found.</div>';
-  return `<div class="heading-row"><div><div class="eyebrow">Run record</div><h1>${esc(state.workflows[r.workflow]?.title)}</h1>${status(r)}</div><div class="actions"><button class="small" data-action="open-run-workflow" data-id="${r.id}">Open output</button><button class="small" data-action="rerun" data-id="${r.id}">Use as new run</button></div></div><div class="panel"><div class="detail-meta">${[
+  return `<div class="heading-row"><div><div class="eyebrow">Run record</div><h1>${esc(r.workflowTitle || state.workflows[r.workflow]?.title || r.workflow)}</h1>${status(r)}</div><div class="actions"><button class="small" data-action="open-run-workflow" data-id="${r.id}">Open output</button><button class="small" data-action="rerun" data-id="${r.id}">Use as new run</button></div></div><div class="panel"><div class="detail-meta">${[
     ["Run ID", r.id],
     ["Started", date(r.startedAt)],
     ["Finished", r.finishedAt ? date(r.finishedAt) : "In progress"],
@@ -324,6 +344,34 @@ function documentModal(doc) {
   );
 }
 const actions = {
+  "new-custom-workflow": () => customWorkflowModal(),
+  "edit-custom-workflow": () =>
+    customWorkflowModal({
+      ...state.workflows[state.workflow],
+      id: state.workflow,
+    }),
+  "save-custom-workflow": async (el) => {
+    const fields = $("#custom-dropdowns")
+      .value.split("\n")
+      .filter((line) => line.trim())
+      .map((line) => {
+        const [label, ...options] = line.split("|").map((part) => part.trim());
+        return { label, options };
+      });
+    const id = el.dataset.id;
+    state.workflows = await api("customWorkflowSave", {
+      id: id || undefined,
+      title: $("#custom-title").value,
+      description: $("#custom-description").value,
+      instruction: $("#custom-prompt").value,
+      fields,
+      webSearch: $("#custom-web").checked,
+    });
+    if (id) delete state.drafts[`${state.project?.id}:${id}`];
+    closeModal();
+    render();
+    toast("Workflow saved.");
+  },
   "toggle-menu": (el) => {
     const open = $(".layout").classList.toggle("menu-open");
     el.setAttribute("aria-expanded", String(open));
@@ -598,10 +646,22 @@ document.addEventListener("click", async (event) => {
     el.disabled = true;
     await action(el);
   } catch (e) {
-    toast(
-      e.message.replace(/^Error invoking remote method '[^']+': Error: /, ""),
-      true,
+    const message = e.message.replace(
+      /^Error invoking remote method '[^']+': Error: /,
+      "",
     );
+    if (el.dataset.action === "save-custom-workflow" && $("#modal").open) {
+      let error = $("#custom-workflow-error");
+      if (!error) {
+        error = document.createElement("div");
+        error.id = "custom-workflow-error";
+        error.className = "error-box";
+        error.setAttribute("role", "alert");
+        $("#modal .modal-footer").before(error);
+      }
+      error.textContent = message;
+      error.scrollIntoView({ block: "nearest" });
+    } else toast(message, true);
   } finally {
     if (el.isConnected) el.disabled = false;
   }

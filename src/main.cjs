@@ -116,7 +116,14 @@ async function startRun(input) {
   const docs = [...new Set(input.documentIds)].map((id) =>
     store.document(p.id, id),
   );
-  const built = buildPrompt(p, docs, input.workflow, input.options || {});
+  const custom = store.customWorkflows();
+  const built = buildPrompt(
+    p,
+    docs,
+    input.workflow,
+    input.options || {},
+    custom,
+  );
   if (typeof input.model !== "string" || !input.model.trim())
     throw new Error("Choose an available model in Settings.");
   const run = store.createRun(p.id, {
@@ -135,9 +142,11 @@ async function startRun(input) {
     execution: {
       sandbox: "read-only",
       approvalPolicy: "never",
-      webSearch: ["journal", "preflight", "reviewers"].includes(input.workflow)
-        ? "live"
-        : "disabled",
+      webSearch:
+        ["journal", "preflight", "reviewers"].includes(input.workflow) ||
+        custom[input.workflow]?.webSearch
+          ? "live"
+          : "disabled",
     },
   });
   const current = {
@@ -223,11 +232,15 @@ async function startRun(input) {
 const handlers = {
   bootstrap: async () => ({
     projects: store.list(),
-    workflows,
+    workflows: { ...workflows, ...store.customWorkflows() },
     dataRoot,
     version: app.getVersion(),
     active: active ? { projectId: active.projectId, run: active.run } : null,
   }),
+  customWorkflowSave: async (input) => {
+    store.saveCustomWorkflow(input);
+    return { ...workflows, ...store.customWorkflows() };
+  },
   projectCreate: async ({ name }) => store.create(name),
   projectUpdate: async ({ projectId, ...input }) =>
     store.update(projectId, input),

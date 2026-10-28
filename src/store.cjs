@@ -26,6 +26,73 @@ class Store {
     this.root = root;
     fs.mkdirSync(path.join(root, "projects"), { recursive: true, mode: 0o700 });
   }
+  customWorkflows() {
+    const file = path.join(this.root, "custom-workflows.json");
+    return fs.existsSync(file) ? read(file) : {};
+  }
+  saveCustomWorkflow(input) {
+    const all = this.customWorkflows();
+    const id = input.id || `custom-${randomUUID()}`;
+    if (
+      !/^custom-[a-f0-9-]{36}$/.test(id) ||
+      (input.id && !Object.hasOwn(all, id))
+    )
+      throw new Error("Unknown custom workflow.");
+    const title = typeof input.title === "string" ? input.title.trim() : "";
+    const description =
+      typeof input.description === "string" ? input.description.trim() : "";
+    const instruction =
+      typeof input.instruction === "string" ? input.instruction.trim() : "";
+    if (
+      !title ||
+      title.length > 100 ||
+      description.length > 300 ||
+      !instruction ||
+      instruction.length > 50000
+    )
+      throw new Error(
+        "Provide a title (up to 100 characters) and prompt (up to 50,000 characters). Description is limited to 300 characters.",
+      );
+    if (!Array.isArray(input.fields) || input.fields.length > 10)
+      throw new Error("Use at most 10 dropdowns.");
+    const fields = input.fields.map((field) => {
+      const label = typeof field.label === "string" ? field.label.trim() : "";
+      if (
+        !label ||
+        label.length > 100 ||
+        !Array.isArray(field.options) ||
+        field.options.length < 1 ||
+        field.options.length > 30 ||
+        field.options.some(
+          (v) => typeof v !== "string" || !v.trim() || v.length > 200,
+        )
+      )
+        throw new Error(
+          "Each dropdown needs a label and 1–30 options (up to 200 characters each).",
+        );
+      const options = field.options.map((v) => v.trim());
+      if (new Set(options).size !== options.length)
+        throw new Error("Dropdown options must be distinct.");
+      return { label, options };
+    });
+    if (
+      new Set(fields.map((f) => f.label.toLowerCase())).size !== fields.length
+    )
+      throw new Error("Dropdown labels must be distinct.");
+    const value = {
+      custom: true,
+      title,
+      description,
+      eyebrow: "Custom workflow",
+      instruction,
+      fields,
+      webSearch: input.webSearch === true,
+      revision: (all[id]?.revision || 0) + 1,
+    };
+    all[id] = value;
+    atomic(path.join(this.root, "custom-workflows.json"), all);
+    return { id, ...value };
+  }
   dir(id) {
     return path.join(this.root, "projects", validateId(id));
   }

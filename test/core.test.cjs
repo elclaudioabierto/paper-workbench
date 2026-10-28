@@ -205,6 +205,56 @@ test("Word tables retain cells and order through Markdown import and Word export
     /<table>[\s\S]*<td><p>A \| B<\/p><\/td>[\s\S]*<td><p>42<\/p><\/td>[\s\S]*<\/table>/,
   );
 });
+test("custom workflows persist, validate choices, and preserve prompt revisions", (t) => {
+  const { s, p } = fixture(t);
+  const d = s.addDocument(p.id, {
+    name: "Paper",
+    role: "manuscript",
+    text: "Evidence.",
+  });
+  const def = s.saveCustomWorkflow({
+    title: "Plain summary",
+    instruction: "Summarize the paper.",
+    fields: [{ label: "Audience", options: ["Experts", "Public"] }],
+    webSearch: true,
+  });
+  const { buildPrompt } = require("../src/workflows.cjs");
+  const first = buildPrompt(
+    p,
+    [d],
+    def.id,
+    { customChoices: ["Public"] },
+    s.customWorkflows(),
+  );
+  assert.deepEqual(first.settings.customChoices, [
+    { label: "Audience", value: "Public" },
+  ]);
+  assert.match(first.prompt, /Summarize the paper/);
+  assert.equal(first.workflowVersion, "custom-1");
+  assert.throws(
+    () =>
+      buildPrompt(
+        p,
+        [d],
+        def.id,
+        { customChoices: ["Invalid"] },
+        s.customWorkflows(),
+      ),
+    /valid option/,
+  );
+  assert.throws(
+    () =>
+      s.saveCustomWorkflow({
+        title: "Bad",
+        instruction: "Prompt",
+        fields: [{ label: "A", options: [] }],
+      }),
+    /dropdown/,
+  );
+  s.saveCustomWorkflow({ ...def, instruction: "Write a new summary." });
+  assert.equal(s.customWorkflows()[def.id].revision, 2);
+  assert.match(first.prompt, /Summarize the paper/);
+});
 test("Markdown bundle includes matching SVG figures, blank tables and body captions", () => {
   const { markdownBundle } = require("../src/documents.cjs");
   const { unzipSync, strFromU8 } = require("fflate");
