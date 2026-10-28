@@ -1,0 +1,58 @@
+{
+  "name": "paper-workbench",
+  "productName": "Paper Workbench",
+  "version": "0.1.0",
+  "description": "A local manuscript workbench powered by Codex, with a durable project audit trail.",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "test:ui": "node test/ui.cjs",
+    "check": "node --check src/main.cjs && node --check src/store.cjs && node --check src/codex.cjs && node --check src/workflows.cjs && node --check src/renderer.js",
+    "package": "electron-builder --linux AppImage --linux dir",
+    "format": "prettier --write src test package.json README.md .github",
+    "test:live": "node test/live.cjs"
+  },
+  "dependencies": {
+    "docx": "^9.5.1",
+    "dompurify": "^3.4.17",
+    "fflate": "^0.8.3",
+    "mammoth": "^1.11.0",
+    "markdown-it": "^15.0.3",
+    "pdfjs-dist": "^6.4.299",
+    "pptxgenjs": "^4.0.1"
+  },
+  "devDependencies": {
+    "electron": "^45.1.0",
+    "electron-builder": "^26.0.12",
+    "playwright": "^1.56.1",
+    "prettier": "^3.9.10"
+  },
+  "build": {
+    "appId": "com.paperworkbench.desktop",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "category": "Office",
+      "target": [
+        "AppImage",
+        "dir"
+      ],
+      "syncDesktopName": true,
+      "icon": "src/icon.png"
+    },
+    "artifactName": "Paper-Workbench-${version}-${arch}.${ext}"
+  },
+  "overrides": {
+    "image-size": "^2.0.4"
+  },
+  "license": "MIT",
+  "author": "Paper Workbench contributors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elclaudioabierto/paper-workbench.git"
+  },
+  "desktopName": "paper-workbench.desktop"
+}

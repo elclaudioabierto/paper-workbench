@@ -1,0 +1,41 @@
+name: Build and release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run check && npm test
+      - name: Desktop integration tests
+        run: xvfb-run -a npm run test:ui
+      - name: Build Linux app
+        run: npm run package -- --publish never
+      - name: Portable archive
+        run: tar -czf dist/Paper-Workbench-linux-x86_64.tar.gz -C dist/linux-unpacked .
+      - name: Checksums
+        run: cd dist && sha256sum *.AppImage *.tar.gz > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paper-workbench-linux
+          path: |
+            dist/*.AppImage
+            dist/*.tar.gz
+            dist/SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.AppImage
+            dist/*.tar.gz
+            dist/SHA256SUMS.txt
