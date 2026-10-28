@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID, createHash } = require("node:crypto");
+const { instructionsUrl } = require("./workflows.cjs");
 const hash = (value) =>
   createHash("sha256")
     .update(typeof value === "string" ? value : JSON.stringify(value))
@@ -91,6 +92,7 @@ class Store {
       id: randomUUID(),
       name: name.trim(),
       journal: "",
+      authorInstructionsUrl: "",
       articleType: "Research article",
       createdAt: now(),
       updatedAt: now(),
@@ -101,11 +103,19 @@ class Store {
   }
   update(id, input) {
     const p = this.project(id);
-    for (const key of ["name", "journal", "articleType"])
+    for (const key of [
+      "name",
+      "journal",
+      "articleType",
+      "authorInstructionsUrl",
+    ])
       if (typeof input[key] === "string") {
         if (input[key].length > 2000 || (key === "name" && !input[key].trim()))
           throw new Error("Invalid project settings.");
-        p[key] = input[key].trim();
+        p[key] =
+          key === "authorInstructionsUrl"
+            ? instructionsUrl(input[key])
+            : input[key].trim();
       }
     p.updatedAt = now();
     atomic(path.join(this.dir(id), "project.json"), p);

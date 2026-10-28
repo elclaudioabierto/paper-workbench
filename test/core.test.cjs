@@ -78,9 +78,18 @@ test("workflow validation refuses missing manuscript and context overflow withou
   );
   assert.throws(() => buildPrompt(p, [d], "unknown"), /Unknown/);
   for (const id of Object.keys(workflows)) {
-    const b = buildPrompt({ ...p, journal: "Target journal" }, [d], id, {
-      instructions: "Preserve citations",
-    });
+    const b = buildPrompt(
+      {
+        ...p,
+        journal: "Target journal",
+        authorInstructionsUrl: "https://example.org/authors",
+      },
+      [d],
+      id,
+      {
+        instructions: "Preserve citations",
+      },
+    );
     assert.ok(b.prompt.includes(d.text));
     assert.ok(b.prompt.includes("Preserve citations"));
     assert.equal(b.settings.journal, "Target journal");
@@ -213,5 +222,66 @@ test("all letter types preserve recipient, sources and correspondence safeguards
   assert.throws(
     () => buildPrompt(p, [d], "letter", { letterType: "Unsupported" }),
     /supported letter type/,
+  );
+});
+test("preflight accepts a journal URL, preserves its provenance and requires an evidence source", (t) => {
+  const { s, p, d } = fixture(t);
+  assert.throws(
+    () => buildPrompt(p, [d], "preflight"),
+    /author-instructions URL/,
+  );
+  const saved = s.update(p.id, {
+    authorInstructionsUrl: "https://example.org/journal/authors#research",
+  });
+  const result = buildPrompt(saved, [d], "preflight");
+  assert.equal(
+    result.settings.authorInstructionsUrl,
+    "https://example.org/journal/authors#research",
+  );
+  assert.ok(result.prompt.includes("UNVERIFIED"));
+  assert.ok(result.prompt.includes("original Word/PDF typography"));
+  assert.ok(result.prompt.includes("extractedTextWordCount"));
+  assert.equal(
+    s.project(p.id).authorInstructionsUrl,
+    result.settings.authorInstructionsUrl,
+  );
+  const override = buildPrompt(saved, [d], "preflight", {
+    authorInstructionsUrl: "https://example.org/other/authors",
+  });
+  assert.equal(
+    override.settings.authorInstructionsUrl,
+    "https://example.org/other/authors",
+  );
+  assert.throws(
+    () => buildPrompt(saved, [d], "preflight", { authorInstructionsUrl: "" }),
+    /author-instructions URL/,
+  );
+  const guidelines = s.addDocument(p.id, {
+    name: "Author instructions",
+    role: "guidelines",
+    text: "Abstract limit: 250 words. Supply a data availability statement.",
+  });
+  const supplied = buildPrompt(saved, [d, guidelines], "preflight", {
+    authorInstructionsUrl: "",
+  });
+  assert.equal(supplied.settings.authorInstructionsUrl, "");
+  assert.ok(supplied.prompt.includes(guidelines.text));
+  assert.ok(
+    supplied.prompt.includes("supplied guidelines rather than a live check"),
+  );
+  assert.equal(s.verify(p.id).valid, true);
+});
+test("author-instructions links reject unsafe schemes and credential-bearing URLs", () => {
+  const { instructionsUrl } = require("../src/workflows.cjs");
+  for (const url of [
+    "file:///tmp/private",
+    "javascript:alert(1)",
+    "https://user:secret@example.org",
+    "not a url",
+  ])
+    assert.throws(() => instructionsUrl(url), /URL/);
+  assert.equal(
+    instructionsUrl(" https://example.org/authors "),
+    "https://example.org/authors",
   );
 });

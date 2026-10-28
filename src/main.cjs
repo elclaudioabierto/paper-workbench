@@ -126,7 +126,9 @@ async function startRun(input) {
     execution: {
       sandbox: "read-only",
       approvalPolicy: "never",
-      webSearch: input.workflow === "journal" ? "live" : "disabled",
+      webSearch: ["journal", "preflight"].includes(input.workflow)
+        ? "live"
+        : "disabled",
     },
   });
   const current = {

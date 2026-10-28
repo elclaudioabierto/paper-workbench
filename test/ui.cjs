@@ -64,6 +64,9 @@ const assert = require("node:assert/strict");
       .getByRole("button", { name: "Project settings", exact: true })
       .click();
     await page.locator("#target-journal").fill("Journal of Digital Health");
+    await page
+      .locator("#project-author-url")
+      .fill("https://example.org/journal/author-instructions");
     await page.getByRole("button", { name: "Save settings" }).click();
     const reviews = path.join(root, "reviewers.txt");
     fs.writeFileSync(
@@ -94,6 +97,7 @@ const assert = require("node:assert/strict");
       "Convert to Markdown",
       "PowerPoint from paper",
       "Letter to reviewers / editor",
+      "Submission preflight",
     ]) {
       await page
         .getByRole("button", { name: title, exact: false })
@@ -102,6 +106,12 @@ const assert = require("node:assert/strict");
       await page
         .locator("#instructions")
         .fill("Preserve all reported findings and flag gaps.");
+      if (title === "Submission preflight") {
+        assert.equal(
+          await page.locator("#author-url").inputValue(),
+          "https://example.org/journal/author-instructions",
+        );
+      }
       if (title === "Letter to reviewers / editor") {
         await page
           .locator("#letter-type")
@@ -172,13 +182,19 @@ const assert = require("node:assert/strict");
     );
     const archive = JSON.parse(fs.readFileSync(auditPath));
     assert.equal(archive.integrity.valid, true);
+    const preflight = archive.runs.find((r) => r.workflow === "preflight");
+    assert.equal(
+      preflight.settings.authorInstructionsUrl,
+      "https://example.org/journal/author-instructions",
+    );
+    assert.equal(preflight.execution.webSearch, "live");
     const letter = archive.runs.find((r) => r.workflow === "letter");
     assert.equal(letter.settings.letterType, "Resubmission letter to editor");
     assert.equal(letter.settings.recipient, "Dr. Example, Editor");
-    assert.equal(archive.runs.length, 8);
+    assert.equal(archive.runs.length, 9);
     assert.equal(
       archive.runs.filter((r) => r.status === "completed").length,
-      7,
+      8,
     );
     assert.equal(
       archive.runs.filter((r) => r.status === "cancelled").length,
@@ -195,7 +211,7 @@ const assert = require("node:assert/strict");
     await page.screenshot({ path: path.join(artifacts, "audit.png") });
     assert.deepEqual(errors, []);
     console.log(
-      "PASS: device sign-in; project settings; text import/edit/version; file import; all seven workflows; streaming; Markdown sanitization; draft adoption; stop; run details; full audit export.",
+      "PASS: device sign-in; project settings; text import/edit/version; file import; all eight workflows; streaming; Markdown sanitization; draft adoption; stop; run details; full audit export.",
     );
     console.log("Screenshots:", artifacts);
   } finally {
