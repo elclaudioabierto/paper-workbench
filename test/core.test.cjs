@@ -285,3 +285,34 @@ test("author-instructions links reject unsafe schemes and credential-bearing URL
     "https://example.org/authors",
   );
 });
+test("reviewer suggestions preserve candidate count, author identities, exclusions and journal policy", (t) => {
+  const { p, d } = fixture(t);
+  const input = {
+    reviewerCount: 4,
+    reviewerAuthors: "Dr. Author, Example University",
+    reviewerExclusions: "Dr. Collaborator; Example University",
+    authorInstructionsUrl: "https://example.org/reviewer-policy",
+  };
+  const built = buildPrompt(p, [d], "reviewers", input);
+  for (const key of Object.keys(input))
+    assert.equal(built.settings[key], input[key]);
+  assert.ok(built.prompt.includes("never label a candidate conflict-free"));
+  assert.ok(built.prompt.includes("Do not recommend excluded candidates"));
+  assert.ok(built.prompt.includes("Never guess email addresses"));
+  assert.ok(
+    built.prompt.includes(
+      "do not copy unpublished manuscript passages into search queries",
+    ),
+  );
+  assert.ok(built.prompt.includes("do not contact candidates"));
+  assert.equal(buildPrompt(p, [d], "reviewers").settings.reviewerCount, 5);
+  assert.equal(
+    buildPrompt(p, [d], "reviewers").settings.authorInstructionsUrl,
+    "",
+  );
+  for (const reviewerCount of [0, 13, 1.5, NaN, "5"])
+    assert.throws(
+      () => buildPrompt(p, [d], "reviewers", { reviewerCount }),
+      /between 1 and 12/,
+    );
+});

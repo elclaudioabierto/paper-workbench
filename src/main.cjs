@@ -126,7 +126,7 @@ async function startRun(input) {
     execution: {
       sandbox: "read-only",
       approvalPolicy: "never",
-      webSearch: ["journal", "preflight"].includes(input.workflow)
+      webSearch: ["journal", "preflight", "reviewers"].includes(input.workflow)
         ? "live"
         : "disabled",
     },

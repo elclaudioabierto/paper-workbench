@@ -4,6 +4,8 @@ An Electron desktop workspace for academic manuscripts, powered by a locally ins
 
 ## Workflows
 
+- **Suggest reviewers:** research source-backed candidates using relevant publications and official profiles. Set a candidate count, author names/affiliations, exclusions, and an optional journal reviewer-policy URL. Record the fit rationale, publication links, and documented/unknown conflicts. Candidates always need author conflict confirmation; the app does not contact them or guess email addresses.
+
 - **Submission preflight:** supply the journal author-instructions URL (or select imported guidelines). Check current official requirements against the manuscript and selected supporting files, with source-linked statuses, submission blockers, and explicit unknowns. Store a default instructions URL in project settings or override it per run. Formatting/metadata and original-file checks cannot be verified from extracted text.
 
 - **Letter to reviewers / editor:** choose an editor cover letter, a point-by-point reviewer response, or a resubmission letter. Set the recipient and use manuscript/reviewer/revision sources; undocumented changes and declarations remain explicit author-confirmation placeholders.
@@ -16,7 +18,7 @@ An Electron desktop workspace for academic manuscripts, powered by a locally ins
 - **Prepare a revision:** organize reviewer comments into an action plan, response matrix, response letter, and checklist.
 - **Prepare a rewrite:** propose substantive text changes, record the rationale, and flag questions requiring author verification.
 
-All eight support additional instructions, explicit source selection, model and reasoning-effort selection, streaming output, cancellation, and a separate record for each attempt. Review generated work before using it.
+All nine support additional instructions, explicit source selection, model and reasoning-effort selection, streaming output, cancellation, and a separate record for each attempt. Review generated work before using it.
 
 ## Run
 
@@ -33,7 +35,7 @@ npm start
 
 In **Settings**, choose **Sign in with Codex**, open the verification link, and enter the device code. The Codex app server owns authentication, persistence, and refresh; account tokens never enter the renderer. Existing Codex sign-in is reused. Sign-out affects the CLI's managed account and may affect other local Codex clients.
 
-Create a project, add a manuscript, optionally add reviewer comments, guidelines, or notes, then choose a workflow. Project settings hold the target journal and article type. Journal selection and submission preflight enable live web search; other workflows disable it. Executable tools are disabled by configuration, threads use a read-only sandbox, approval policy is `never`, and the client declines server-initiated approval/tool requests.
+Create a project, add a manuscript, optionally add reviewer comments, guidelines, or notes, then choose a workflow. Project settings hold the target journal and article type. Journal selection, submission preflight, and reviewer suggestions enable live web search; other workflows disable it. Executable tools are disabled by configuration, threads use a read-only sandbox, approval policy is `never`, and the client declines server-initiated approval/tool requests.
 
 ## Documents and results
 
@@ -68,7 +70,7 @@ npm run test:ui
 npm run package -- --publish never
 ```
 
-The UI test launches Electron with isolated temporary project storage and a **fake Codex protocol process**, and covers device sign-in, import/versioning, all eight workflows, streaming, cancellation, rendering sanitization, draft adoption, and audit export. It does not spend model tokens. On a headless system use `xvfb-run -a npm run test:ui`. Test screenshots are written to ignored `test-artifacts/`.
+The UI test launches Electron with isolated temporary project storage and a **fake Codex protocol process**, and covers device sign-in, import/versioning, all nine workflows, streaming, cancellation, rendering sanitization, draft adoption, and audit export. It does not spend model tokens. On a headless system use `xvfb-run -a npm run test:ui`. Test screenshots are written to ignored `test-artifacts/`.
 
 The release workflow builds Linux AppImages for version tags. Dependencies are pinned by `package-lock.json`. AppImages are unsigned. macOS and Windows distributions are not built in this release.
 
