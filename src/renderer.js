@@ -33,6 +33,7 @@ const state = {
   workflows: {},
   graph: { nodes: [], edges: [] },
   graphExecution: null,
+  update: { status: "idle" },
   project: null,
   documents: [],
   runs: [],
@@ -124,8 +125,9 @@ function readDraft() {
 function render() {
   const p = state.project;
   $("#app").innerHTML =
-    `<div class="layout"><aside class="sidebar" id="sidebar"><button class="menu-close small" data-action="close-menu">Close menu ✕</button><div class="brand"><div class="brand-mark">p</div><span>Paper Workbench</span></div><button data-action="navigate" data-view="overview" class="${state.view === "overview" ? "active" : ""}"><span>◫</span> Workbench</button><button data-action="navigate" data-view="graph" class="${state.view === "graph" ? "active" : ""}" ${!p ? "disabled" : ""}><span>◇</span> Workflow graph</button><button data-action="navigate" data-view="documents" class="${state.view === "documents" ? "active" : ""}" ${!p ? "disabled" : ""}><span>▤</span> Documents</button><button data-action="navigate" data-view="history" class="${state.view === "history" ? "active" : ""}" ${!p ? "disabled" : ""}><span>◷</span> Run history</button><button data-action="navigate" data-view="audit" class="${state.view === "audit" ? "active" : ""}" ${!p ? "disabled" : ""}><span>☷</span> Audit trail</button><div class="sidebar-label">Your projects</div><div class="project-list">${state.projects.map((x) => `<button data-action="open-project" data-id="${x.id}" class="${p?.id === x.id ? "active" : ""}" title="${esc(x.name)}">${esc(x.name)}</button>`).join("")}</div><button class="new-project" data-action="new-project">＋ New project</button><div class="sidebar-bottom"><button data-action="navigate" data-view="settings" class="${state.view === "settings" ? "active" : ""}"><span class="account-dot ${state.account ? "online" : ""}"></span> ${state.account ? "Codex connected" : "Connect Codex"} <span>↗</span></button><div class="sidebar-footnote">Local projects. Traceable work.<br>Paper Workbench · v${esc(state.version)}</div></div></aside><main class="main"><header class="topbar"><button class="menu-toggle small" data-action="toggle-menu" aria-controls="sidebar" aria-expanded="false">☰ Menu</button><div class="breadcrumb"><span>Library</span><span>/</span><strong>${esc(p?.name || "Your next paper starts here")}</strong>${state.view === "workflow" ? `<span>/</span><span>${esc(state.workflows[state.workflow].title)}</span>` : ""}</div><div class="actions">${state.active ? '<button class="small" data-action="active-run">◌ Workflow running</button>' : ""}<span class="pill">${p ? "Project saved locally" : "Your research, in focus"}</span>${p ? '<button class="small secondary" data-action="project-settings" title="Project settings">Project settings</button>' : ""}</div></header><section class="content">${viewHTML()}</section></main></div>`;
+    `<div class="layout"><aside class="sidebar" id="sidebar"><button class="menu-close small" data-action="close-menu">Close menu ✕</button><div class="brand"><div class="brand-mark">p</div><span>Paper Workbench</span></div><button data-action="navigate" data-view="overview" class="${state.view === "overview" ? "active" : ""}"><span>◫</span> Workbench</button><button data-action="navigate" data-view="graph" class="${state.view === "graph" ? "active" : ""}" ${!p ? "disabled" : ""}><span>◇</span> Workflow graph</button><button data-action="navigate" data-view="documents" class="${state.view === "documents" ? "active" : ""}" ${!p ? "disabled" : ""}><span>▤</span> Documents</button><button data-action="navigate" data-view="history" class="${state.view === "history" ? "active" : ""}" ${!p ? "disabled" : ""}><span>◷</span> Run history</button><button data-action="navigate" data-view="audit" class="${state.view === "audit" ? "active" : ""}" ${!p ? "disabled" : ""}><span>☷</span> Audit trail</button><div class="sidebar-label">Your projects</div><div class="project-list">${state.projects.map((x) => `<button data-action="open-project" data-id="${x.id}" class="${p?.id === x.id ? "active" : ""}" title="${esc(x.name)}">${esc(x.name)}</button>`).join("")}</div><button class="new-project" data-action="new-project">＋ New project</button><div class="sidebar-bottom"><button data-action="navigate" data-view="settings" class="${state.view === "settings" ? "active" : ""}"><span class="account-dot ${state.account ? "online" : ""}"></span> ${state.account ? "Codex connected" : "Connect Codex"} <span>↗</span></button><div class="sidebar-footnote">Local projects. Traceable work.<br>Paper Workbench · v${esc(state.version)}</div></div></aside><main class="main"><header class="topbar"><button class="menu-toggle small" data-action="toggle-menu" aria-controls="sidebar" aria-expanded="false">☰ Menu</button><div class="breadcrumb"><span>Library</span><span>/</span><strong>${esc(p?.name || "Your next paper starts here")}</strong>${state.view === "workflow" ? `<span>/</span><span>${esc(state.workflows[state.workflow].title)}</span>` : ""}</div><div class="actions">${state.active ? '<button class="small" data-action="active-run">◌ Workflow running</button>' : ""}<span id="update-indicator"></span><span class="pill">${p ? "Project saved locally" : "Your research, in focus"}</span>${p ? '<button class="small secondary" data-action="project-settings" title="Project settings">Project settings</button>' : ""}</div></header><section class="content">${viewHTML()}</section></main></div>`;
   if (state.view === "workflow") renderOutput();
+  renderUpdate();
 }
 function viewHTML() {
   if (state.view === "settings") return settingsHTML();
@@ -329,7 +331,28 @@ function detailHTML() {
     )}</div>${r.error ? `<div class="error-box">${esc(r.error)}</div>` : ""}<h3>Source snapshots</h3>${r.sourceDocuments.map((d) => `<p class="help">${esc(d.name)} · version ${d.version}<br>SHA-256: ${esc(d.sha256)}</p>`).join("")}<details><summary>Exact prompt sent to Codex</summary><pre>${esc(r.prompt)}</pre></details><details><summary>Settings & token usage</summary><pre>${esc(JSON.stringify({ settings: r.settings, execution: r.execution, tokenUsage: r.tokenUsage, codexVersion: r.codexVersion, parentRunId: r.parentRunId, graphExecutionId: r.graphExecutionId, graphNodeId: r.graphNodeId, inputRunIds: r.inputRunIds }, null, 2))}</pre></details><details><summary>Observable Codex events (${state.detailEvents?.length || 0})</summary><pre>${esc(JSON.stringify(state.detailEvents || [], null, 2))}</pre></details><details><summary>Original output</summary><pre>${esc(r.output)}</pre></details></div>`;
 }
 function settingsHTML() {
-  return `<div class="intro"><div class="eyebrow">Configuration</div><h1>Settings & connection</h1><p>Use your Codex account and keep project files on this machine.</p></div><div class="settings-grid"><div class="panel"><h2>Codex account</h2>${state.account ? `<div class="integrity">✓ Signed in ${state.account.email ? `as ${esc(state.account.email)}` : ""}<br>${esc(state.account.planType || state.account.type || "")}</div><button data-action="logout">Sign out</button>` : `<p class="help">Sign in with a device code. Codex manages credentials and token refresh. Your access token is never sent to this interface.</p>${state.authError ? `<div class="error-box">${esc(state.authError)}</div>` : ""}<button class="primary" data-action="login">Sign in with Codex ↗</button><div class="help"><h3>Need to install Codex?</h3><p>Paper Workbench requires the Codex CLI separately. Install <a href="https://nodejs.org/en/download">Node.js</a> if needed, then open a terminal and run:</p><p><code>npm install -g @openai/codex</code></p><p>Check with <code>codex --version</code> in a new terminal. Restart Paper Workbench after installing or changing PATH, then sign in here. See the <a href="https://learn.chatgpt.com/docs/codex/cli">Codex installation guide</a> for help.</p></div>`}${state.device ? `<div class="device-code">${esc(state.device.userCode)}</div><p class="help">Open the verification page and enter this code. Waiting for approval…</p><div class="actions"><button data-action="open-device">Open verification page ↗</button><button data-action="cancel-login">Cancel</button></div>` : ""}<p class="help">Requires the Codex CLI on PATH. This app uses the CLI’s managed account, so sign-in/sign-out can affect other local Codex clients.</p><button class="text-button" data-action="refresh-account">Refresh connection ↻</button></div><div class="panel"><h2>Model & reasoning</h2><label for="settings-model">Default model</label><select id="settings-model">${modelOptions()}</select><label for="settings-effort">Default reasoning effort</label><select id="settings-effort">${effortOptions()}</select><p class="help">Models are discovered from your Codex account. Each run records the selected model and effort.</p><h3>Local library</h3><p class="help">${esc(state.dataRoot)}</p><p class="help">Projects and audit archives contain manuscript text. Selected documents and instructions are transmitted to Codex when you run a workflow. Journal selection also uses web search.</p></div></div>`;
+  return `<div class="intro"><div class="eyebrow">Configuration</div><h1>Settings & connection</h1><p>Use your Codex account and keep project files on this machine.</p></div><div class="settings-grid"><div class="panel"><h2>Codex account</h2>${state.account ? `<div class="integrity">✓ Signed in ${state.account.email ? `as ${esc(state.account.email)}` : ""}<br>${esc(state.account.planType || state.account.type || "")}</div><button data-action="logout">Sign out</button>` : `<p class="help">Sign in with a device code. Codex manages credentials and token refresh. Your access token is never sent to this interface.</p>${state.authError ? `<div class="error-box">${esc(state.authError)}</div>` : ""}<button class="primary" data-action="login">Sign in with Codex ↗</button><div class="help"><h3>Need to install Codex?</h3><p>Paper Workbench requires the Codex CLI separately. Install <a href="https://nodejs.org/en/download">Node.js</a> if needed, then open a terminal and run:</p><p><code>npm install -g @openai/codex</code></p><p>Check with <code>codex --version</code> in a new terminal. Restart Paper Workbench after installing or changing PATH, then sign in here. See the <a href="https://learn.chatgpt.com/docs/codex/cli">Codex installation guide</a> for help.</p></div>`}${state.device ? `<div class="device-code">${esc(state.device.userCode)}</div><p class="help">Open the verification page and enter this code. Waiting for approval…</p><div class="actions"><button data-action="open-device">Open verification page ↗</button><button data-action="cancel-login">Cancel</button></div>` : ""}<p class="help">Requires the Codex CLI on PATH. This app uses the CLI’s managed account, so sign-in/sign-out can affect other local Codex clients.</p><button class="text-button" data-action="refresh-account">Refresh connection ↻</button></div><div class="panel"><h2>Model & reasoning</h2><label for="settings-model">Default model</label><select id="settings-model">${modelOptions()}</select><label for="settings-effort">Default reasoning effort</label><select id="settings-effort">${effortOptions()}</select><p class="help">Models are discovered from your Codex account. Each run records the selected model and effort.</p><h3>App updates</h3><div id="update-settings"></div><h3>Local library</h3><p class="help">${esc(state.dataRoot)}</p><p class="help">Projects and audit archives contain manuscript text. Selected documents and instructions are transmitted to Codex when you run a workflow. Journal selection also uses web search.</p></div></div>`;
+}
+function renderUpdate() {
+  const update = state.update || { status: "idle" };
+  const indicator = $("#update-indicator");
+  if (indicator)
+    indicator.innerHTML =
+      update.status === "ready"
+        ? '<button class="small" data-action="navigate" data-view="settings">Update ready ↗</button>'
+        : "";
+  const settings = $("#update-settings");
+  if (!settings) return;
+  const labels = {
+    idle: "Updates are checked automatically.",
+    checking: "Checking for updates…",
+    current: "Paper Workbench is up to date.",
+    downloading: `Downloading version ${esc(update.version || "")}…`,
+    ready: `Version ${esc(update.version || "")} is ready to install. Save any unfinished edits before restarting.`,
+    error: `Could not check or download an update: ${esc(update.message || "Unknown error")}`,
+    unavailable: esc(update.message || "Automatic updates are unavailable."),
+  };
+  settings.innerHTML = `<p class="help">${labels[update.status] || ""}</p>${update.status === "ready" ? '<button class="primary" data-action="update-install">Restart and install update</button>' : update.status === "unavailable" ? "" : `<button class="small" data-action="update-check" ${["checking", "downloading"].includes(update.status) ? "disabled" : ""}>Check for updates</button>`}`;
 }
 async function openProject(id) {
   const data = await api("projectOpen", { projectId: id });
@@ -393,6 +416,13 @@ function documentModal(doc) {
   );
 }
 const actions = {
+  "update-check": async () => {
+    state.update = await api("updateCheck");
+    renderUpdate();
+  },
+  "update-install": async () => {
+    await api("updateInstall");
+  },
   "new-custom-workflow": () => customWorkflowModal(),
   "edit-custom-workflow": () =>
     customWorkflowModal({
@@ -823,6 +853,12 @@ document.addEventListener("change", (event) => {
     readDraft();
 });
 window.workbench.onEvent(async ({ type, data }) => {
+  if (type === "update") {
+    state.update = data;
+    renderUpdate();
+    if (data.status === "ready")
+      toast("An update is ready. Open Settings to restart and install it.");
+  }
   if (type === "graph") {
     state.graphExecution = data;
     if (state.view === "graph" && state.project?.id === data.projectId)

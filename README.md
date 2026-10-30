@@ -49,6 +49,10 @@ In **Settings**, choose **Sign in with Codex**, open the verification link, and 
 
 Create a project, add a manuscript, optionally add reviewer comments, guidelines, or notes, then choose a workflow. Project settings hold the target journal and article type. Journal selection, submission preflight, and reviewer suggestions enable live web search; other workflows disable it. Executable tools are disabled by configuration, threads use a read-only sandbox, approval policy is `never`, and the client declines server-initiated approval/tool requests.
 
+## App updates
+
+Installed Linux AppImage and Windows versions check GitHub Releases for updates at startup and every six hours. An available update is downloaded in the background; Settings offers **Restart and install update** after it is ready. Save unfinished edits first. The app refuses to install while a workflow or workflow graph is running. To use automatic updates, first install a version that includes this updater; older installations need a manual update. The unpacked Linux archive does not support automatic updates. Automatic updates are disabled on macOS until the app is code-signed; the current macOS releases are unsigned. Windows ZIP users should install the NSIS version to use the updater.
+
 ## Documents and results
 
 Import DOCX, text-based PDF, Markdown, or plain text. DOCX tables are extracted as Markdown tables with their cell text and row order; the first row is represented as a Markdown header. Merged cells are marked with span information, but complex layouts, nested tables, and formatting may not transfer faithfully. Imports extract text, not layout, figures, tracked changes, or comments. Review extracted text against the original before running. Scanned PDFs need OCR outside this app. Source files are identified by SHA-256; extracted text and all saved text versions are retained in the project. Imports do not copy the original binary files.

@@ -23,6 +23,7 @@ jobs:
       - name: Portable archive and checksums
         run: |
           tar -czf dist/Paper-Workbench-linux-x86_64.tar.gz -C dist/linux-unpacked .
+          test -f dist/latest-linux.yml
           cd dist && sha256sum *.AppImage *.tar.gz > SHA256SUMS-linux.txt
       - uses: actions/upload-artifact@v4
         with:
@@ -31,6 +32,7 @@ jobs:
             dist/*.AppImage
             dist/*.tar.gz
             dist/SHA256SUMS-linux.txt
+            dist/latest-linux.yml
   macos:
     runs-on: macos-15
     steps:
@@ -73,6 +75,7 @@ jobs:
       - name: Checksums
         shell: pwsh
         run: |
+          if (!(Test-Path dist/latest.yml)) { throw "Missing Windows update metadata" }
           Get-ChildItem dist/*.exe, dist/*.zip | ForEach-Object {
             "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
           } | Set-Content dist/SHA256SUMS-windows.txt
@@ -83,6 +86,8 @@ jobs:
             dist/*.exe
             dist/*.zip
             dist/SHA256SUMS-windows.txt
+            dist/latest.yml
+            dist/*.blockmap
   release:
     if: startsWith(github.ref, 'refs/tags/')
     needs: [linux, macos, windows]

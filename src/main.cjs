@@ -13,6 +13,7 @@ if (process.platform === "darwin") {
 const { Store, hash } = require("./store.cjs");
 const { validateGraph } = require("./graph.cjs");
 const { randomUUID } = require("node:crypto");
+const { createUpdates } = require("./updates.cjs");
 const { Codex } = require("./codex.cjs");
 const { workflows, buildPrompt, BASE } = require("./workflows.cjs");
 const { extract, exportDocx, markdownBundle } = require("./documents.cjs");
@@ -21,7 +22,8 @@ let win,
   store,
   codex,
   active = null,
-  graphExecution = null;
+  graphExecution = null,
+  updates;
 const dataRoot =
   process.env.PAPER_WORKBENCH_DATA ||
   path.join(app.getPath("userData"), "library");
@@ -375,7 +377,16 @@ const handlers = {
     version: app.getVersion(),
     active: active ? { projectId: active.projectId, run: active.run } : null,
     graphExecution: graphExecution?.public || null,
+    update: updates.getState(),
   }),
+  updateCheck: async () => updates.check(),
+  updateInstall: async () => {
+    // The AppImage updater relaunches without the desktop launcher's arguments.
+    // Preserve extraction mode on systems without FUSE, including this install.
+    if (process.platform === "linux" && !fs.existsSync("/dev/fuse"))
+      process.env.APPIMAGE_EXTRACT_AND_RUN = "1";
+    return updates.install();
+  },
   customWorkflowSave: async (input) => {
     store.saveCustomWorkflow(input);
     return { ...workflows, ...store.customWorkflows() };
@@ -596,6 +607,22 @@ else {
         throw new Error("Unsupported request.");
       return handlers[action](input);
     });
+    const reason = !app.isPackaged
+      ? "Updates are available in installed builds."
+      : process.platform === "darwin"
+        ? "Automatic updates require signed macOS builds."
+        : process.platform === "linux" && !process.env.APPIMAGE
+          ? "Automatic updates require the AppImage installation."
+          : !["linux", "win32"].includes(process.platform)
+            ? "Automatic updates are not available on this platform."
+            : "";
+    updates = createUpdates({
+      updater: reason ? null : require("electron-updater").autoUpdater,
+      supported: !reason,
+      unavailableReason: reason,
+      busy: () => !!active || !!graphExecution,
+      notify: (update) => send("update", update),
+    });
     win = new BrowserWindow({
       width: 1460,
       height: 960,
@@ -616,6 +643,14 @@ else {
     win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     win.webContents.on("will-navigate", (event) => event.preventDefault());
     win.loadFile(path.join(__dirname, "index.html"));
+    if (!reason) {
+      win.webContents.once("did-finish-load", () => updates.check());
+      const updateTimer = setInterval(
+        () => updates.check(),
+        6 * 60 * 60 * 1000,
+      );
+      updateTimer.unref();
+    }
     win.on("close", (event) => {
       if (active || graphExecution) {
         const answer = dialog.showMessageBoxSync(win, {
