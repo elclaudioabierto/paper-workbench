@@ -14,6 +14,12 @@ const { Store, hash } = require("./store.cjs");
 const { validateGraph } = require("./graph.cjs");
 const { randomUUID } = require("node:crypto");
 const { createUpdates } = require("./updates.cjs");
+const {
+  createBackup,
+  prepareRestore,
+  applyRestore,
+  MAX_ARCHIVE,
+} = require("./backup.cjs");
 const { Codex } = require("./codex.cjs");
 const { workflows, buildPrompt, BASE } = require("./workflows.cjs");
 const { extract, exportDocx, markdownBundle } = require("./documents.cjs");
@@ -550,6 +556,89 @@ const handlers = {
       sha256: hash(content),
     });
     return true;
+  },
+  backupCreate: async () => {
+    if (active || graphExecution)
+      throw new Error(
+        "Finish or stop the current workflow before creating a backup.",
+      );
+    const result = await dialog.showSaveDialog(win, {
+      title: "Back up Paper Workbench library",
+      defaultPath: `Paper-Workbench-backup-${new Date().toISOString().slice(0, 10)}.zip`,
+      filters: [{ name: "Paper Workbench backup", extensions: ["zip"] }],
+    });
+    if (result.canceled || !result.filePath) return null;
+    if (active || graphExecution)
+      throw new Error(
+        "Finish or stop the current workflow before creating a backup.",
+      );
+    const destination = path.resolve(result.filePath);
+    const relative = path.relative(
+      fs.realpathSync(dataRoot),
+      fs.realpathSync(path.dirname(destination)),
+    );
+    if (
+      !relative ||
+      (!relative.startsWith(`..${path.sep}`) &&
+        relative !== ".." &&
+        !path.isAbsolute(relative))
+    )
+      throw new Error("Choose a location outside the Paper Workbench library.");
+    const bytes = createBackup(dataRoot);
+    const temp = `${destination}.${randomUUID()}.tmp`;
+    try {
+      fs.writeFileSync(temp, bytes, { mode: 0o600, flag: "wx" });
+      fs.renameSync(temp, destination);
+    } finally {
+      fs.rmSync(temp, { force: true });
+    }
+    return { filePath: destination };
+  },
+  backupRestore: async () => {
+    if (active || graphExecution)
+      throw new Error(
+        "Finish or stop the current workflow before restoring a backup.",
+      );
+    const selection = await dialog.showOpenDialog(win, {
+      title: "Restore Paper Workbench library",
+      properties: ["openFile"],
+      filters: [{ name: "Paper Workbench backup", extensions: ["zip"] }],
+    });
+    if (selection.canceled || !selection.filePaths.length) return null;
+    if (active || graphExecution)
+      throw new Error(
+        "Finish or stop the current workflow before restoring a backup.",
+      );
+    const file = selection.filePaths[0];
+    if (fs.statSync(file).size > MAX_ARCHIVE)
+      throw new Error("Backup archive exceeds the size limit.");
+    const prepared = prepareRestore(dataRoot, fs.readFileSync(file));
+    try {
+      const choice = await dialog.showMessageBox(win, {
+        type: "question",
+        buttons: ["Cancel", "Restore backup"],
+        defaultId: 0,
+        cancelId: 0,
+        title: "Restore library backup?",
+        message: `Restore ${prepared.projectCount} project(s) and ${prepared.workflowCount} custom workflow(s)?`,
+        detail:
+          "This replaces the current library. The previous library will be kept in a separate folder on this computer. Save any unfinished edits first.",
+      });
+      if (choice.response !== 1) return null;
+      if (active || graphExecution)
+        throw new Error(
+          "Finish or stop the current workflow before restoring a backup.",
+        );
+      const previousPath = applyRestore(dataRoot, prepared.stage);
+      store = new Store(dataRoot);
+      return {
+        previousPath,
+        projects: store.list(),
+        workflows: { ...workflows, ...store.customWorkflows() },
+      };
+    } finally {
+      fs.rmSync(prepared.stage, { recursive: true, force: true });
+    }
   },
   exportAudit: async ({ projectId }) => {
     const result = await dialog.showSaveDialog(win, {

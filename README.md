@@ -49,6 +49,12 @@ In **Settings**, choose **Sign in with Codex**, open the verification link, and 
 
 Create a project, add a manuscript, optionally add reviewer comments, guidelines, or notes, then choose a workflow. Project settings hold the target journal and article type. Journal selection, submission preflight, and reviewer suggestions enable live web search; other workflows disable it. Executable tools are disabled by configuration, threads use a read-only sandbox, approval policy is `never`, and the client declines server-initiated approval/tool requests.
 
+## Library backup and restore
+
+In **Settings**, choose **Back up library** to create a ZIP containing all projects, extracted document text and versions, workflow graphs, custom workflows, runs and audit records. Backups include manuscript text; keep them somewhere private. They do not contain original imported DOCX/PDF files, Codex credentials or application settings. Save unfinished edits and finish any running workflow before backing up.
+
+On another computer, install Paper Workbench and choose **Restore backup** in Settings. The app validates the archive and project audit chains before asking to replace the current library. Restore replaces the entire library rather than merging projects, and retains the previous library in a separate folder shown after restoring. Sign in to Codex separately on the new computer. Both backup and restore support libraries up to 512 MiB uncompressed and individual files up to 128 MiB.
+
 ## App updates
 
 Installed Linux AppImage and Windows versions check GitHub Releases for updates at startup and every six hours. An available update is downloaded in the background; Settings offers **Restart and install update** after it is ready. Save unfinished edits first. The app refuses to install while a workflow or workflow graph is running. To use automatic updates, first install a version that includes this updater; older installations need a manual update. The unpacked Linux archive does not support automatic updates. Automatic updates are disabled on macOS until the app is code-signed; the current macOS releases are unsigned. Windows ZIP users should install the NSIS version to use the updater.

@@ -1,19 +1,20 @@
 {
   "name": "paper-workbench",
   "productName": "Paper Workbench",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "A local manuscript workbench powered by Codex, with a durable project audit trail.",
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.cjs",
     "test:ui": "node test/ui.cjs",
-    "check": "node --check src/main.cjs && node --check src/store.cjs && node --check src/codex.cjs && node --check src/workflows.cjs && node --check src/renderer.js && node --check src/updates.cjs",
+    "check": "node --check src/main.cjs && node --check src/store.cjs && node --check src/codex.cjs && node --check src/workflows.cjs && node --check src/renderer.js && node --check src/updates.cjs && node --check src/backup.cjs",
     "package": "electron-builder --linux AppImage --linux dir",
     "format": "prettier --write src test package.json README.md .github",
     "test:live": "node test/live.cjs",
     "package:mac": "electron-builder --mac dmg zip --x64 --arm64",
-    "package:win": "electron-builder --win nsis zip --x64"
+    "package:win": "electron-builder --win nsis zip --x64",
+    "test:backup-ui": "node test/backup-ui.cjs"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.8.15",

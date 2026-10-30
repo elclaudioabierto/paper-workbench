@@ -17,7 +17,9 @@ jobs:
       - run: npm ci
       - run: npm run check && npm test
       - name: Desktop integration tests
-        run: xvfb-run -a npm run test:ui
+        run: |
+          xvfb-run -a npm run test:ui
+          xvfb-run -a npm run test:backup-ui
       - name: Build Linux app
         run: npm run package -- --publish never
       - name: Portable archive and checksums
@@ -67,7 +69,9 @@ jobs:
       - run: npm ci
       - run: npm run check && npm test
       - name: Desktop integration tests
-        run: npm run test:ui
+        run: |
+          npm run test:ui
+          npm run test:backup-ui
       - name: Build unsigned Windows app
         run: npm run package:win -- --publish never
         env:

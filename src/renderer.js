@@ -331,7 +331,7 @@ function detailHTML() {
     )}</div>${r.error ? `<div class="error-box">${esc(r.error)}</div>` : ""}<h3>Source snapshots</h3>${r.sourceDocuments.map((d) => `<p class="help">${esc(d.name)} · version ${d.version}<br>SHA-256: ${esc(d.sha256)}</p>`).join("")}<details><summary>Exact prompt sent to Codex</summary><pre>${esc(r.prompt)}</pre></details><details><summary>Settings & token usage</summary><pre>${esc(JSON.stringify({ settings: r.settings, execution: r.execution, tokenUsage: r.tokenUsage, codexVersion: r.codexVersion, parentRunId: r.parentRunId, graphExecutionId: r.graphExecutionId, graphNodeId: r.graphNodeId, inputRunIds: r.inputRunIds }, null, 2))}</pre></details><details><summary>Observable Codex events (${state.detailEvents?.length || 0})</summary><pre>${esc(JSON.stringify(state.detailEvents || [], null, 2))}</pre></details><details><summary>Original output</summary><pre>${esc(r.output)}</pre></details></div>`;
 }
 function settingsHTML() {
-  return `<div class="intro"><div class="eyebrow">Configuration</div><h1>Settings & connection</h1><p>Use your Codex account and keep project files on this machine.</p></div><div class="settings-grid"><div class="panel"><h2>Codex account</h2>${state.account ? `<div class="integrity">✓ Signed in ${state.account.email ? `as ${esc(state.account.email)}` : ""}<br>${esc(state.account.planType || state.account.type || "")}</div><button data-action="logout">Sign out</button>` : `<p class="help">Sign in with a device code. Codex manages credentials and token refresh. Your access token is never sent to this interface.</p>${state.authError ? `<div class="error-box">${esc(state.authError)}</div>` : ""}<button class="primary" data-action="login">Sign in with Codex ↗</button><div class="help"><h3>Need to install Codex?</h3><p>Paper Workbench requires the Codex CLI separately. Install <a href="https://nodejs.org/en/download">Node.js</a> if needed, then open a terminal and run:</p><p><code>npm install -g @openai/codex</code></p><p>Check with <code>codex --version</code> in a new terminal. Restart Paper Workbench after installing or changing PATH, then sign in here. See the <a href="https://learn.chatgpt.com/docs/codex/cli">Codex installation guide</a> for help.</p></div>`}${state.device ? `<div class="device-code">${esc(state.device.userCode)}</div><p class="help">Open the verification page and enter this code. Waiting for approval…</p><div class="actions"><button data-action="open-device">Open verification page ↗</button><button data-action="cancel-login">Cancel</button></div>` : ""}<p class="help">Requires the Codex CLI on PATH. This app uses the CLI’s managed account, so sign-in/sign-out can affect other local Codex clients.</p><button class="text-button" data-action="refresh-account">Refresh connection ↻</button></div><div class="panel"><h2>Model & reasoning</h2><label for="settings-model">Default model</label><select id="settings-model">${modelOptions()}</select><label for="settings-effort">Default reasoning effort</label><select id="settings-effort">${effortOptions()}</select><p class="help">Models are discovered from your Codex account. Each run records the selected model and effort.</p><h3>App updates</h3><div id="update-settings"></div><h3>Local library</h3><p class="help">${esc(state.dataRoot)}</p><p class="help">Projects and audit archives contain manuscript text. Selected documents and instructions are transmitted to Codex when you run a workflow. Journal selection also uses web search.</p></div></div>`;
+  return `<div class="intro"><div class="eyebrow">Configuration</div><h1>Settings & connection</h1><p>Use your Codex account and keep project files on this machine.</p></div><div class="settings-grid"><div class="panel"><h2>Codex account</h2>${state.account ? `<div class="integrity">✓ Signed in ${state.account.email ? `as ${esc(state.account.email)}` : ""}<br>${esc(state.account.planType || state.account.type || "")}</div><button data-action="logout">Sign out</button>` : `<p class="help">Sign in with a device code. Codex manages credentials and token refresh. Your access token is never sent to this interface.</p>${state.authError ? `<div class="error-box">${esc(state.authError)}</div>` : ""}<button class="primary" data-action="login">Sign in with Codex ↗</button><div class="help"><h3>Need to install Codex?</h3><p>Paper Workbench requires the Codex CLI separately. Install <a href="https://nodejs.org/en/download">Node.js</a> if needed, then open a terminal and run:</p><p><code>npm install -g @openai/codex</code></p><p>Check with <code>codex --version</code> in a new terminal. Restart Paper Workbench after installing or changing PATH, then sign in here. See the <a href="https://learn.chatgpt.com/docs/codex/cli">Codex installation guide</a> for help.</p></div>`}${state.device ? `<div class="device-code">${esc(state.device.userCode)}</div><p class="help">Open the verification page and enter this code. Waiting for approval…</p><div class="actions"><button data-action="open-device">Open verification page ↗</button><button data-action="cancel-login">Cancel</button></div>` : ""}<p class="help">Requires the Codex CLI on PATH. This app uses the CLI’s managed account, so sign-in/sign-out can affect other local Codex clients.</p><button class="text-button" data-action="refresh-account">Refresh connection ↻</button></div><div class="panel"><h2>Model & reasoning</h2><label for="settings-model">Default model</label><select id="settings-model">${modelOptions()}</select><label for="settings-effort">Default reasoning effort</label><select id="settings-effort">${effortOptions()}</select><p class="help">Models are discovered from your Codex account. Each run records the selected model and effort.</p><h3>App updates</h3><div id="update-settings"></div><h3>Library backup</h3><p class="help">Save all projects, history, graphs and custom workflows to a ZIP, or restore a backup from another computer. Save unfinished edits first. Backups contain manuscript text.</p><div class="actions"><button data-action="backup-create">Back up library</button><button data-action="backup-restore">Restore backup</button></div><h3>Local library</h3><p class="help">${esc(state.dataRoot)}</p><p class="help">Projects and audit archives contain manuscript text. Selected documents and instructions are transmitted to Codex when you run a workflow. Journal selection also uses web search.</p></div></div>`;
 }
 function renderUpdate() {
   const update = state.update || { status: "idle" };
@@ -416,6 +416,34 @@ function documentModal(doc) {
   );
 }
 const actions = {
+  "backup-create": async () => {
+    const result = await api("backupCreate");
+    if (result) toast("Library backup saved.");
+  },
+  "backup-restore": async () => {
+    const result = await api("backupRestore");
+    if (!result) return;
+    state.projects = result.projects;
+    state.workflows = result.workflows;
+    state.project = null;
+    state.documents = [];
+    state.runs = [];
+    state.audit = [];
+    state.graph = { nodes: [], edges: [] };
+    state.runId = null;
+    state.selected = new Set();
+    state.drafts = {};
+    state.outputEdits = {};
+    localStorage.removeItem("project");
+    if (state.projects.length) await openProject(state.projects[0].id);
+    else {
+      state.view = "settings";
+      render();
+    }
+    showModal(
+      `<h2>Library restored</h2><p>The backup is ready to use.${result.previousPath ? ` The previous library was kept at:</p><pre>${esc(result.previousPath)}</pre>` : "</p>"}<div class="modal-footer"><button data-action="close-modal">Done</button></div>`,
+    );
+  },
   "update-check": async () => {
     state.update = await api("updateCheck");
     renderUpdate();
