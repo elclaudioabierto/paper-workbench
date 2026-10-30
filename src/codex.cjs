@@ -1,4 +1,6 @@
-const { spawn } = require("node:child_process");
+// npm exposes CLI commands as .cmd shims on Windows; cross-spawn resolves and
+// runs those shims while keeping executable arguments separate on other OSes.
+const spawn = require("cross-spawn");
 const { EventEmitter } = require("node:events");
 const readline = require("node:readline");
 class Codex extends EventEmitter {

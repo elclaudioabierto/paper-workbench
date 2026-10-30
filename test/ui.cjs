@@ -39,6 +39,8 @@ const assert = require("node:assert/strict");
       .getByRole("button", { name: "Create project ↗", exact: true })
       .click();
     await page.getByRole("button", { name: "Connect Codex" }).click();
+    await page.getByRole("heading", { name: "Need to install Codex?" }).waitFor();
+    await page.getByText("npm install -g @openai/codex").waitFor();
     await page.getByRole("button", { name: "Sign in with Codex" }).click();
     await page.locator(".device-code").waitFor();
     await page.locator(".integrity").filter({ hasText: "Signed in" }).waitFor();

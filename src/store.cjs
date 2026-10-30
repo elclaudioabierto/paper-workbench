@@ -93,6 +93,17 @@ class Store {
     atomic(path.join(this.root, "custom-workflows.json"), all);
     return { id, ...value };
   }
+  graph(id) {
+    this.project(id);
+    const file = path.join(this.dir(id), "workflow-graph.json");
+    return fs.existsSync(file) ? read(file) : { nodes: [], edges: [] };
+  }
+  saveGraph(id, graph) {
+    this.project(id);
+    atomic(path.join(this.dir(id), "workflow-graph.json"), graph);
+    this.audit(id, "graph.saved", { graph });
+    return graph;
+  }
   dir(id) {
     return path.join(this.root, "projects", validateId(id));
   }
@@ -297,6 +308,9 @@ class Store {
       promptSha256: hash(run.prompt),
       settings: run.settings,
       parentRunId: run.parentRunId || null,
+      graphExecutionId: run.graphExecutionId || null,
+      graphNodeId: run.graphNodeId || null,
+      inputRunIds: run.inputRunIds || [],
     });
     return run;
   }
@@ -363,6 +377,7 @@ class Store {
       format: "paper-workbench-audit-v1",
       exportedAt: now(),
       project: this.project(id),
+      graph: this.graph(id),
       documents: this.docs(id),
       versions: this.docs(id).flatMap((d) =>
         fs

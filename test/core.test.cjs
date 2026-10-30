@@ -145,6 +145,23 @@ test("Codex process failures reject pending calls and allow restart", async (t) 
   await c.start();
   assert.ok((await c.request("model/list")).data.length);
 });
+test(
+  "Windows Codex command shim starts the protocol process",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "paper codex "));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const shim = path.join(root, "codex.cmd");
+    fs.writeFileSync(
+      shim,
+      `@echo off\r\n"${process.execPath}" "${path.join(__dirname, "fake-codex.cjs")}" %*\r\n`,
+    );
+    const c = new Codex({ binary: shim });
+    t.after(() => c.stop());
+    await c.start();
+    assert.ok((await c.request("model/list")).data.length);
+  },
+);
 test("DOCX export imports back as readable manuscript text", async (t) => {
   const { extract, exportDocx } = require("../src/documents.cjs");
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "paper-docx-"));

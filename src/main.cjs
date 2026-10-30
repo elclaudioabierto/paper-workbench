@@ -11,6 +11,8 @@ if (process.platform === "darwin") {
   ].join(path.delimiter);
 }
 const { Store, hash } = require("./store.cjs");
+const { validateGraph } = require("./graph.cjs");
+const { randomUUID } = require("node:crypto");
 const { Codex } = require("./codex.cjs");
 const { workflows, buildPrompt, BASE } = require("./workflows.cjs");
 const { extract, exportDocx, markdownBundle } = require("./documents.cjs");
@@ -18,7 +20,8 @@ const { exportPptx } = require("./presentation.cjs");
 let win,
   store,
   codex,
-  active = null;
+  active = null,
+  graphExecution = null;
 const dataRoot =
   process.env.PAPER_WORKBENCH_DATA ||
   path.join(app.getPath("userData"), "library");
@@ -35,6 +38,8 @@ function finish(status, error) {
   store.finishRun(projectId, run, status, error);
   active = null;
   send("run", { projectId, run });
+  if (graphExecution && run.graphExecutionId === graphExecution.id)
+    graphStepFinished(run);
 }
 function notification({ method, params: p }) {
   if (/^account\//.test(method)) {
@@ -113,9 +118,9 @@ async function startRun(input) {
   const p = store.project(input.projectId);
   if (!Array.isArray(input.documentIds) || !input.documentIds.length)
     throw new Error("Select source documents.");
-  const docs = [...new Set(input.documentIds)].map((id) =>
-    store.document(p.id, id),
-  );
+  const docs =
+    input._graphDocs ||
+    [...new Set(input.documentIds)].map((id) => store.document(p.id, id));
   const custom = store.customWorkflows();
   const built = buildPrompt(
     p,
@@ -139,6 +144,9 @@ async function startRun(input) {
       sha256: d.sha256,
     })),
     parentRunId: input.parentRunId || null,
+    graphExecutionId: input._graphExecutionId || null,
+    graphNodeId: input._graphNodeId || null,
+    inputRunIds: input._inputRunIds || [],
     execution: {
       sandbox: "read-only",
       approvalPolicy: "never",
@@ -229,6 +237,136 @@ async function startRun(input) {
   })();
   return run;
 }
+function graphUpdate() {
+  if (graphExecution) send("graph", graphExecution.public);
+}
+function graphEnd(status, error = "") {
+  const g = graphExecution;
+  if (!g) return;
+  g.public.status = status;
+  g.public.error = error;
+  store.audit(g.projectId, "graph.finished", {
+    executionId: g.id,
+    status,
+    error,
+    steps: g.public.steps,
+  });
+  graphUpdate();
+  graphExecution = null;
+}
+function graphStepFinished(run) {
+  const g = graphExecution;
+  if (!g) return;
+  const step = g.public.steps.find((s) => s.id === run.graphNodeId);
+  step.status = run.status;
+  step.runId = run.id;
+  if (run.status !== "completed")
+    return graphEnd(run.status, run.error || "A step did not complete.");
+  g.results.set(step.id, run);
+  graphUpdate();
+  setImmediate(() => {
+    if (graphExecution === g) graphNext();
+  });
+}
+async function graphNext() {
+  const g = graphExecution;
+  if (!g) return;
+  const node = g.order[g.index++];
+  if (!node) return graphEnd("completed");
+  try {
+    const sources = g.graph.edges
+      .filter((e) => e.to === node.id && e.type === "output")
+      .map((e) => g.results.get(e.from));
+    if (sources.some((r) => !r || !r.output.trim()))
+      throw new Error("An upstream step produced no output to pass forward.");
+    const extra = sources.map((r) => ({
+      id: r.id,
+      name: `Output of ${r.workflowTitle} (run ${r.id})`,
+      role: "notes",
+      version: 1,
+      text: r.output,
+      sha256: hash(r.output),
+    }));
+    const step = g.public.steps.find((s) => s.id === node.id);
+    step.status = "starting";
+    graphUpdate();
+    await startRun({
+      projectId: g.projectId,
+      documentIds: g.documentIds,
+      workflow: node.workflow,
+      model: g.model,
+      effort: g.effort,
+      options: { instructions: node.instructions || "" },
+      _graphDocs: [...g.docs, ...extra],
+      _graphExecutionId: g.id,
+      _graphNodeId: node.id,
+      _inputRunIds: sources.map((r) => r.id),
+    });
+  } catch (e) {
+    const step = g.public.steps.find((s) => s.id === node.id);
+    step.status = "failed";
+    graphEnd("failed", e.message);
+  }
+}
+async function startGraph(input) {
+  if (active || graphExecution)
+    throw new Error("A workflow or graph is already running.");
+  const project = store.project(input.projectId);
+  const graph = store.graph(input.projectId);
+  const definitions = { ...workflows, ...store.customWorkflows() };
+  const order = validateGraph(graph, definitions);
+  if (!order.length) throw new Error("Add at least one step.");
+  if (!Array.isArray(input.documentIds) || !input.documentIds.length)
+    throw new Error("Select source documents.");
+  if (typeof input.model !== "string" || !input.model.trim())
+    throw new Error("Choose an available model in Settings.");
+  const documentIds = [...new Set(input.documentIds)];
+  const docs = documentIds.map((id) => store.document(project.id, id));
+  // Catch invalid settings before starting any work.
+  for (const node of order)
+    buildPrompt(
+      project,
+      docs,
+      node.workflow,
+      { instructions: node.instructions || "" },
+      definitions,
+    );
+  const id = randomUUID();
+  graphExecution = {
+    id,
+    projectId: project.id,
+    graph,
+    order,
+    index: 0,
+    docs,
+    documentIds,
+    model: input.model,
+    effort: input.effort || "medium",
+    results: new Map(),
+    public: {
+      id,
+      projectId: project.id,
+      status: "running",
+      steps: order.map((n) => ({
+        id: n.id,
+        workflow: n.workflow,
+        status: "waiting",
+        runId: null,
+      })),
+    },
+  };
+  store.audit(project.id, "graph.started", {
+    executionId: id,
+    graph,
+    documentIds,
+    model: input.model,
+    effort: input.effort || "medium",
+  });
+  graphUpdate();
+  const result = graphExecution.public;
+  await graphNext();
+  return result;
+}
 const handlers = {
   bootstrap: async () => ({
     projects: store.list(),
@@ -236,6 +374,7 @@ const handlers = {
     dataRoot,
     version: app.getVersion(),
     active: active ? { projectId: active.projectId, run: active.run } : null,
+    graphExecution: graphExecution?.public || null,
   }),
   customWorkflowSave: async (input) => {
     store.saveCustomWorkflow(input);
@@ -250,6 +389,7 @@ const handlers = {
     runs: store.runs(projectId),
     audit: store.events(projectId),
     integrity: store.verify(projectId),
+    graph: store.graph(projectId),
   }),
   documentAdd: async ({ projectId, ...input }) =>
     store.addDocument(projectId, input),
@@ -318,7 +458,27 @@ const handlers = {
     } while (cursor);
     return models;
   },
-  runStart: startRun,
+  graphSave: async ({ projectId, graph }) => {
+    validateGraph(graph, { ...workflows, ...store.customWorkflows() });
+    return store.saveGraph(projectId, graph);
+  },
+  graphStart: startGraph,
+  graphCancel: async () => {
+    if (!graphExecution) return;
+    if (active) return handlers.runCancel({ runId: active.run.id });
+    graphEnd("cancelled", "Stopped by user.");
+  },
+  runStart: async (input) => {
+    if (graphExecution) throw new Error("A workflow graph is running.");
+    const {
+      _graphDocs,
+      _graphExecutionId,
+      _graphNodeId,
+      _inputRunIds,
+      ...safeInput
+    } = input;
+    return startRun(safeInput);
+  },
   runCancel: async ({ runId }) => {
     if (!active || active.run.id !== runId) return;
     active.cancelRequested = true;
@@ -457,7 +617,7 @@ else {
     win.webContents.on("will-navigate", (event) => event.preventDefault());
     win.loadFile(path.join(__dirname, "index.html"));
     win.on("close", (event) => {
-      if (active) {
+      if (active || graphExecution) {
         const answer = dialog.showMessageBoxSync(win, {
           type: "question",
           buttons: ["Keep working", "Stop run and quit"],
@@ -468,7 +628,8 @@ else {
             "Quitting interrupts the run. Its audit trail and partial output will be preserved.",
         });
         if (answer === 0) event.preventDefault();
-        else finish("interrupted", "Application closed by user.");
+        else if (active) finish("interrupted", "Application closed by user.");
+        else graphEnd("interrupted", "Application closed by user.");
       }
     });
     const checkpoint = setInterval(() => {
@@ -479,6 +640,7 @@ else {
   app.on("window-all-closed", () => app.quit());
   app.on("before-quit", () => {
     if (active) finish("interrupted", "Application shut down.");
+    if (graphExecution) graphEnd("interrupted", "Application shut down.");
     codex?.stop();
   });
 }

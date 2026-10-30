@@ -1127,3 +1127,88 @@ details {
     margin-bottom: 12px;
   }
 }
+.graph-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.graph-canvas {
+  display: flex;
+  overflow-x: auto;
+  margin: 20px 0;
+}
+.graph-nodes {
+  min-width: 300px;
+  flex: 1;
+}
+.graph-node {
+  height: 90px;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #ddd8cc;
+  border-radius: 10px;
+  background: #fff;
+}
+.graph-node > div:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.graph-node small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #777;
+}
+.graph-num {
+  color: #8b7868;
+  font-weight: bold;
+}
+.graph-node-actions {
+  display: flex;
+  gap: 4px;
+}
+.graph-lines {
+  flex: none;
+  overflow: visible;
+}
+.graph-lines path {
+  fill: none;
+  stroke: #a69a88;
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+.graph-lines path.output {
+  stroke: #866552;
+  stroke-dasharray: none;
+}
+.graph-edge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+.graph-connect {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 16px;
+}
+.graph-connect select {
+  width: 100%;
+}
+@media (max-width: 900px) {
+  .graph-layout {
+    grid-template-columns: 1fr;
+  }
+  .graph-connect {
+    grid-template-columns: 1fr 1fr;
+  }
+}

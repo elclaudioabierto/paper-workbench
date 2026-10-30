@@ -1,7 +1,7 @@
 {
   "name": "paper-workbench",
   "productName": "Paper Workbench",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A local manuscript workbench powered by Codex, with a durable project audit trail.",
   "main": "src/main.cjs",
   "scripts": {
@@ -12,10 +12,12 @@
     "package": "electron-builder --linux AppImage --linux dir",
     "format": "prettier --write src test package.json README.md .github",
     "test:live": "node test/live.cjs",
-    "package:mac": "electron-builder --mac dmg zip --x64 --arm64"
+    "package:mac": "electron-builder --mac dmg zip --x64 --arm64",
+    "package:win": "electron-builder --win nsis zip --x64"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.8.15",
+    "cross-spawn": "^7.0.6",
     "docx": "^9.5.1",
     "dompurify": "^3.4.17",
     "fflate": "^0.8.3",
@@ -52,6 +54,17 @@
         "dmg",
         "zip"
       ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "artifactName": "Paper-Workbench-${version}-windows-${arch}.${ext}",
+      "icon": "src/icon.png"
+    },
+    "nsis": {
+      "include": "build/installer.nsh"
     }
   },
   "overrides": {

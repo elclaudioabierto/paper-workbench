@@ -22,13 +22,21 @@ All nine support additional instructions, explicit source selection, model and r
 
 Use **Create workflow** on the workbench to add your own title, prompt, optional description, and dropdowns. Enter one dropdown per line, such as `Audience | Experts | General readers`; the first option is the default. The selected values are included in the run prompt. You can optionally enable live web research and edit your workflow later. Custom workflows live in the local library and are available to all projects on that computer; changes apply to future runs, while existing runs retain their exact prompt, selected values, and workflow revision. The project audit export contains the run records, but does not back up the editable custom workflow definitions; back up `custom-workflows.json` in the library separately.
 
+## Workflow graph
+
+Open **Workflow graph** in a project to add workflow steps and connect them. An **Order only** connection waits for the earlier step without including its output; a **Pass output** connection also supplies the earlier result as supporting text. Branches and multiple inputs are supported. Steps execute one at a time in dependency order, and independent steps follow their order in the editor. Cycles are rejected. The graph is saved with the project.
+
+Choose the source documents, model and reasoning effort before running. Every step receives the selected document versions, plus outputs from its incoming Pass output connections. Steps use their workflow defaults and project settings; optional per-step instructions can be edited in the graph. A failure, interruption, empty required output, or cancellation stops the remaining steps. Each completed or partial run remains in history with its prompt, output, graph execution ID, and upstream run IDs. Automatic outputs are unreviewed and are passed as supporting material, not saved as new manuscript versions. Graphs run while the application is open and do not resume automatically after a restart.
+
 ## Run
 
-Requires Linux x86_64 or macOS (Apple Silicon or Intel) and a recent [Codex CLI](https://learn.chatgpt.com/docs/app-server) on `PATH` (developed against 0.165.0), with access to a supported model. The CLI is not bundled. Install it with `npm install -g @openai/codex` if needed.
+Requires Linux x86_64, Windows x64, or macOS (Apple Silicon or Intel) and a recent [Codex CLI](https://learn.chatgpt.com/docs/app-server) on `PATH` (developed against 0.165.0), with access to a supported model. The CLI is not bundled. Install it with `npm install -g @openai/codex` if needed.
 
 Download the AppImage from GitHub Releases, make it executable, and run it. Systems without FUSE can use `./Paper-Workbench-0.1.0-x86_64.AppImage --appimage-extract-and-run` (substitute the actual downloaded filename). The unpacked Linux tarball is another option; extract it and run `paper-workbench`.
 
 On macOS, download the DMG for your processor (`arm64` for Apple Silicon, `x64` for Intel) and drag the app to Applications. The macOS builds are unsigned and not notarized, so macOS may block them; use Privacy & Security settings to allow an app you trust. Finder starts with a limited PATH; common Homebrew and ~/.local/bin locations are included. If Codex was installed elsewhere, launch the app executable from a terminal where `codex` works, for example `"/Applications/Paper Workbench.app/Contents/MacOS/Paper Workbench"`.
+
+On Windows, download the x64 installer (`.exe`) or extract the Windows ZIP and run `Paper Workbench.exe`. The installer offers to open the Codex installation guide, and the app's Settings includes installation steps. Install Node.js and the Codex CLI separately, and check that `codex --version` works in a new terminal. Restart the app after installing Codex or changing PATH. The Windows builds are unsigned, so Windows SmartScreen may show a warning.
 
 From source (Node.js 24+):
 
@@ -54,6 +62,7 @@ Results can be exported as Markdown, plain text, DOCX, a Markdown ZIP with SVG f
 Every project contains:
 
 - `project.json`: project metadata and journal settings.
+- `workflow-graph.json`: the project’s saved workflow graph.
 - `documents/` and `versions/`: current text and immutable version snapshots.
 - `runs/`: exact prompt, source IDs/versions/hashes, workflow version, selected and resolved model, reasoning effort, run status and times, Codex thread/turn IDs, usage where emitted, output, and errors.
 - `run-events/`: observable Codex protocol activity, including text deltas and tool/search events. Internal reasoning streams and duplicate legacy notifications are omitted. These are observable activity records, not a claim to expose model-internal reasoning or every remote operation.
@@ -76,7 +85,7 @@ npm run package -- --publish never
 
 The UI test launches Electron with isolated temporary project storage and a **fake Codex protocol process**, and covers device sign-in, import/versioning, all nine workflows, streaming, cancellation, rendering sanitization, draft adoption, and audit export. It does not spend model tokens. On a headless system use `xvfb-run -a npm run test:ui`. Test screenshots are written to ignored `test-artifacts/`.
 
-The release workflow builds Linux AppImages and unsigned macOS DMG and ZIP files for version tags. Dependencies are pinned by `package-lock.json`. macOS builds are not notarized; Windows distributions are not built.
+The release workflow builds Linux AppImages, unsigned macOS DMG and ZIP files, and an unsigned Windows x64 installer and ZIP for version tags. Dependencies are pinned by `package-lock.json`. macOS builds are not notarized.
 
 Test-only environment overrides: `PAPER_WORKBENCH_DATA`, `PAPER_WORKBENCH_CODEX`, and JSON-array `PAPER_WORKBENCH_CODEX_ARGS`.
 

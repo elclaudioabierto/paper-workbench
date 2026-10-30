@@ -31,6 +31,8 @@ const icons = {
 const state = {
   projects: [],
   workflows: {},
+  graph: { nodes: [], edges: [] },
+  graphExecution: null,
   project: null,
   documents: [],
   runs: [],
@@ -122,18 +124,65 @@ function readDraft() {
 function render() {
   const p = state.project;
   $("#app").innerHTML =
-    `<div class="layout"><aside class="sidebar" id="sidebar"><button class="menu-close small" data-action="close-menu">Close menu ✕</button><div class="brand"><div class="brand-mark">p</div><span>Paper Workbench</span></div><button data-action="navigate" data-view="overview" class="${state.view === "overview" ? "active" : ""}"><span>◫</span> Workbench</button><button data-action="navigate" data-view="documents" class="${state.view === "documents" ? "active" : ""}" ${!p ? "disabled" : ""}><span>▤</span> Documents</button><button data-action="navigate" data-view="history" class="${state.view === "history" ? "active" : ""}" ${!p ? "disabled" : ""}><span>◷</span> Run history</button><button data-action="navigate" data-view="audit" class="${state.view === "audit" ? "active" : ""}" ${!p ? "disabled" : ""}><span>☷</span> Audit trail</button><div class="sidebar-label">Your projects</div><div class="project-list">${state.projects.map((x) => `<button data-action="open-project" data-id="${x.id}" class="${p?.id === x.id ? "active" : ""}" title="${esc(x.name)}">${esc(x.name)}</button>`).join("")}</div><button class="new-project" data-action="new-project">＋ New project</button><div class="sidebar-bottom"><button data-action="navigate" data-view="settings" class="${state.view === "settings" ? "active" : ""}"><span class="account-dot ${state.account ? "online" : ""}"></span> ${state.account ? "Codex connected" : "Connect Codex"} <span>↗</span></button><div class="sidebar-footnote">Local projects. Traceable work.<br>Paper Workbench · v${esc(state.version)}</div></div></aside><main class="main"><header class="topbar"><button class="menu-toggle small" data-action="toggle-menu" aria-controls="sidebar" aria-expanded="false">☰ Menu</button><div class="breadcrumb"><span>Library</span><span>/</span><strong>${esc(p?.name || "Your next paper starts here")}</strong>${state.view === "workflow" ? `<span>/</span><span>${esc(state.workflows[state.workflow].title)}</span>` : ""}</div><div class="actions">${state.active ? '<button class="small" data-action="active-run">◌ Workflow running</button>' : ""}<span class="pill">${p ? "Project saved locally" : "Your research, in focus"}</span>${p ? '<button class="small secondary" data-action="project-settings" title="Project settings">Project settings</button>' : ""}</div></header><section class="content">${viewHTML()}</section></main></div>`;
+    `<div class="layout"><aside class="sidebar" id="sidebar"><button class="menu-close small" data-action="close-menu">Close menu ✕</button><div class="brand"><div class="brand-mark">p</div><span>Paper Workbench</span></div><button data-action="navigate" data-view="overview" class="${state.view === "overview" ? "active" : ""}"><span>◫</span> Workbench</button><button data-action="navigate" data-view="graph" class="${state.view === "graph" ? "active" : ""}" ${!p ? "disabled" : ""}><span>◇</span> Workflow graph</button><button data-action="navigate" data-view="documents" class="${state.view === "documents" ? "active" : ""}" ${!p ? "disabled" : ""}><span>▤</span> Documents</button><button data-action="navigate" data-view="history" class="${state.view === "history" ? "active" : ""}" ${!p ? "disabled" : ""}><span>◷</span> Run history</button><button data-action="navigate" data-view="audit" class="${state.view === "audit" ? "active" : ""}" ${!p ? "disabled" : ""}><span>☷</span> Audit trail</button><div class="sidebar-label">Your projects</div><div class="project-list">${state.projects.map((x) => `<button data-action="open-project" data-id="${x.id}" class="${p?.id === x.id ? "active" : ""}" title="${esc(x.name)}">${esc(x.name)}</button>`).join("")}</div><button class="new-project" data-action="new-project">＋ New project</button><div class="sidebar-bottom"><button data-action="navigate" data-view="settings" class="${state.view === "settings" ? "active" : ""}"><span class="account-dot ${state.account ? "online" : ""}"></span> ${state.account ? "Codex connected" : "Connect Codex"} <span>↗</span></button><div class="sidebar-footnote">Local projects. Traceable work.<br>Paper Workbench · v${esc(state.version)}</div></div></aside><main class="main"><header class="topbar"><button class="menu-toggle small" data-action="toggle-menu" aria-controls="sidebar" aria-expanded="false">☰ Menu</button><div class="breadcrumb"><span>Library</span><span>/</span><strong>${esc(p?.name || "Your next paper starts here")}</strong>${state.view === "workflow" ? `<span>/</span><span>${esc(state.workflows[state.workflow].title)}</span>` : ""}</div><div class="actions">${state.active ? '<button class="small" data-action="active-run">◌ Workflow running</button>' : ""}<span class="pill">${p ? "Project saved locally" : "Your research, in focus"}</span>${p ? '<button class="small secondary" data-action="project-settings" title="Project settings">Project settings</button>' : ""}</div></header><section class="content">${viewHTML()}</section></main></div>`;
   if (state.view === "workflow") renderOutput();
 }
 function viewHTML() {
   if (state.view === "settings") return settingsHTML();
   if (!state.project) return onboardingHTML();
+  if (state.view === "graph") return graphHTML();
   if (state.view === "documents") return documentsHTML();
   if (state.view === "history") return historyHTML();
   if (state.view === "audit") return auditHTML();
   if (state.view === "workflow") return workflowHTML();
   if (state.view === "run-detail") return detailHTML();
   return overviewHTML();
+}
+function graphHTML() {
+  const graph = state.graph || { nodes: [], edges: [] };
+  const execution =
+    state.graphExecution?.projectId === state.project.id
+      ? state.graphExecution
+      : null;
+  const running = execution?.status === "running";
+  const choices = graph.nodes
+    .map(
+      (n, i) =>
+        `<option value="${esc(n.id)}">${i + 1}. ${esc(state.workflows[n.workflow]?.title || n.workflow)}</option>`,
+    )
+    .join("");
+  const lines = graph.edges
+    .map((e) => {
+      const a = graph.nodes.findIndex((n) => n.id === e.from),
+        b = graph.nodes.findIndex((n) => n.id === e.to);
+      const x = 20 + graph.edges.indexOf(e) * 8;
+      return `<path d="M 0 ${a * 100 + 45} H ${x} V ${b * 100 + 45} H 0" class="${esc(e.type)}" />`;
+    })
+    .join("");
+  return `<div class="heading-row"><div><div class="eyebrow">Connect your work</div><h1>Workflow graph</h1><p class="muted">Build a sequence or branch steps. Connections control order and whether output is passed on.</p></div><button class="small" data-action="navigate" data-view="overview">← Workbench</button></div>
+  <div class="graph-layout"><div class="panel"><h3>Steps</h3><p class="help">Steps run one at a time after their dependencies finish. Independent steps run in their listed order.</p>
+  <div class="graph-canvas"><div class="graph-nodes">${
+    graph.nodes
+      .map((n, i) => {
+        const step = execution?.steps.find((s) => s.id === n.id);
+        return `<div class="graph-node"><span class="graph-num">${i + 1}</span><div><strong>${esc(state.workflows[n.workflow]?.title || n.workflow)}</strong><small>${n.instructions ? esc(n.instructions) : "Default settings"}</small>${step ? `<small>${esc(step.status)} ${step.runId ? `<button class="text-button" data-action="run-detail" data-id="${esc(step.runId)}">View run ↗</button>` : ""}</small>` : ""}</div><div class="graph-node-actions"><button class="small" data-action="graph-edit" data-id="${esc(n.id)}" ${running ? "disabled" : ""}>Edit</button><button class="small" data-action="graph-remove" data-id="${esc(n.id)}" ${running ? "disabled" : ""}>Remove</button></div></div>`;
+      })
+      .join("") || '<div class="empty">Add a workflow to begin.</div>'
+  }</div><svg class="graph-lines" width="${Math.max(60, 30 + graph.edges.length * 8)}" height="${graph.nodes.length * 100}" aria-hidden="true">${lines}</svg></div>
+  <label for="graph-workflow">Add a workflow</label><div class="actions"><select id="graph-workflow">${Object.entries(
+    state.workflows,
+  )
+    .map(([id, w]) => `<option value="${esc(id)}">${esc(w.title)}</option>`)
+    .join(
+      "",
+    )}</select><button data-action="graph-add" ${running ? "disabled" : ""}>＋ Add step</button></div>
+  <h3>Connections</h3>${graph.edges.map((e, i) => `<div class="graph-edge"><span>${esc(state.workflows[graph.nodes.find((n) => n.id === e.from)?.workflow]?.title)} → ${esc(state.workflows[graph.nodes.find((n) => n.id === e.to)?.workflow]?.title)} <small>(${e.type === "output" ? "pass output" : "order only"})</small></span><button class="small" data-action="graph-disconnect" data-index="${i}" ${running ? "disabled" : ""}>Remove</button></div>`).join("") || '<p class="help">No connections yet.</p>'}
+  <div class="graph-connect"><div><label for="graph-from">From</label><select id="graph-from">${choices}</select></div><div><label for="graph-to">To</label><select id="graph-to">${choices}</select></div><div><label for="graph-type">Connection</label><select id="graph-type"><option value="order">Order only</option><option value="output">Pass output</option></select></div><button data-action="graph-connect" ${running || graph.nodes.length < 2 ? "disabled" : ""}>Connect</button></div></div>
+  <div class="panel"><h3>Run graph</h3><p class="help">Each step receives the selected source documents. Output connections also supply the upstream result as supporting material. Order-only connections do not pass output.</p>${state.documents.map((doc) => `<label class="doc-select"><input type="checkbox" data-document="${esc(doc.id)}" ${state.selected.has(doc.id) ? "checked" : ""}><span>${esc(doc.name)}<br><small>${esc(doc.role)} · v${doc.version}</small></span></label>`).join("") || '<p class="help">Add a manuscript first.</p>'}<label for="graph-model">Model</label><select id="graph-model">${modelOptions()}</select><label for="graph-effort">Reasoning effort</label><select id="graph-effort">${effortOptions()}</select><div class="run-controls">${running ? '<button data-action="graph-stop">Stop graph</button>' : `<button class="primary" data-action="graph-run" ${state.active || !state.account || !graph.nodes.length ? "disabled" : ""}>Run graph ↗</button>`}</div>${execution ? `<p class="help">Graph: ${esc(execution.status)}${execution.error ? ` · ${esc(execution.error)}` : ""}</p>` : ""}<p class="help">A failed or stopped step stops the graph. Each result and its prompt are saved in run history. Generated output needs review.</p></div></div>`;
+}
+async function saveGraph(graph) {
+  state.graph = await api("graphSave", { projectId: state.project.id, graph });
+  render();
 }
 function onboardingHTML() {
   return `<div class="onboarding"><div class="eyebrow">From first draft to final response</div><h1>Papers.<br>Work in progress.</h1><div class="intro"><p>Manuscripts, ${Object.keys(state.workflows).length} workflows, and a complete record of what you ran.</p><button class="primary" data-action="new-project">Create your first project ↗</button></div><button class="secondary" data-action="new-custom-workflow">＋ Create workflow</button><div class="grid">${Object.entries(
@@ -277,10 +326,10 @@ function detailHTML() {
     .map(([k, v]) => `<div><span>${k}</span>${esc(v)}</div>`)
     .join(
       "",
-    )}</div>${r.error ? `<div class="error-box">${esc(r.error)}</div>` : ""}<h3>Source snapshots</h3>${r.sourceDocuments.map((d) => `<p class="help">${esc(d.name)} · version ${d.version}<br>SHA-256: ${esc(d.sha256)}</p>`).join("")}<details><summary>Exact prompt sent to Codex</summary><pre>${esc(r.prompt)}</pre></details><details><summary>Settings & token usage</summary><pre>${esc(JSON.stringify({ settings: r.settings, execution: r.execution, tokenUsage: r.tokenUsage, codexVersion: r.codexVersion, parentRunId: r.parentRunId }, null, 2))}</pre></details><details><summary>Observable Codex events (${state.detailEvents?.length || 0})</summary><pre>${esc(JSON.stringify(state.detailEvents || [], null, 2))}</pre></details><details><summary>Original output</summary><pre>${esc(r.output)}</pre></details></div>`;
+    )}</div>${r.error ? `<div class="error-box">${esc(r.error)}</div>` : ""}<h3>Source snapshots</h3>${r.sourceDocuments.map((d) => `<p class="help">${esc(d.name)} · version ${d.version}<br>SHA-256: ${esc(d.sha256)}</p>`).join("")}<details><summary>Exact prompt sent to Codex</summary><pre>${esc(r.prompt)}</pre></details><details><summary>Settings & token usage</summary><pre>${esc(JSON.stringify({ settings: r.settings, execution: r.execution, tokenUsage: r.tokenUsage, codexVersion: r.codexVersion, parentRunId: r.parentRunId, graphExecutionId: r.graphExecutionId, graphNodeId: r.graphNodeId, inputRunIds: r.inputRunIds }, null, 2))}</pre></details><details><summary>Observable Codex events (${state.detailEvents?.length || 0})</summary><pre>${esc(JSON.stringify(state.detailEvents || [], null, 2))}</pre></details><details><summary>Original output</summary><pre>${esc(r.output)}</pre></details></div>`;
 }
 function settingsHTML() {
-  return `<div class="intro"><div class="eyebrow">Configuration</div><h1>Settings & connection</h1><p>Use your Codex account and keep project files on this machine.</p></div><div class="settings-grid"><div class="panel"><h2>Codex account</h2>${state.account ? `<div class="integrity">✓ Signed in ${state.account.email ? `as ${esc(state.account.email)}` : ""}<br>${esc(state.account.planType || state.account.type || "")}</div><button data-action="logout">Sign out</button>` : `<p class="help">Sign in with a device code. Codex manages credentials and token refresh. Your access token is never sent to this interface.</p>${state.authError ? `<div class="error-box">${esc(state.authError)}</div>` : ""}<button class="primary" data-action="login">Sign in with Codex ↗</button>`}${state.device ? `<div class="device-code">${esc(state.device.userCode)}</div><p class="help">Open the verification page and enter this code. Waiting for approval…</p><div class="actions"><button data-action="open-device">Open verification page ↗</button><button data-action="cancel-login">Cancel</button></div>` : ""}<p class="help">Requires the Codex CLI on PATH. This app uses the CLI’s managed account, so sign-in/sign-out can affect other local Codex clients.</p><button class="text-button" data-action="refresh-account">Refresh connection ↻</button></div><div class="panel"><h2>Model & reasoning</h2><label for="settings-model">Default model</label><select id="settings-model">${modelOptions()}</select><label for="settings-effort">Default reasoning effort</label><select id="settings-effort">${effortOptions()}</select><p class="help">Models are discovered from your Codex account. Each run records the selected model and effort.</p><h3>Local library</h3><p class="help">${esc(state.dataRoot)}</p><p class="help">Projects and audit archives contain manuscript text. Selected documents and instructions are transmitted to Codex when you run a workflow. Journal selection also uses web search.</p></div></div>`;
+  return `<div class="intro"><div class="eyebrow">Configuration</div><h1>Settings & connection</h1><p>Use your Codex account and keep project files on this machine.</p></div><div class="settings-grid"><div class="panel"><h2>Codex account</h2>${state.account ? `<div class="integrity">✓ Signed in ${state.account.email ? `as ${esc(state.account.email)}` : ""}<br>${esc(state.account.planType || state.account.type || "")}</div><button data-action="logout">Sign out</button>` : `<p class="help">Sign in with a device code. Codex manages credentials and token refresh. Your access token is never sent to this interface.</p>${state.authError ? `<div class="error-box">${esc(state.authError)}</div>` : ""}<button class="primary" data-action="login">Sign in with Codex ↗</button><div class="help"><h3>Need to install Codex?</h3><p>Paper Workbench requires the Codex CLI separately. Install <a href="https://nodejs.org/en/download">Node.js</a> if needed, then open a terminal and run:</p><p><code>npm install -g @openai/codex</code></p><p>Check with <code>codex --version</code> in a new terminal. Restart Paper Workbench after installing or changing PATH, then sign in here. See the <a href="https://learn.chatgpt.com/docs/codex/cli">Codex installation guide</a> for help.</p></div>`}${state.device ? `<div class="device-code">${esc(state.device.userCode)}</div><p class="help">Open the verification page and enter this code. Waiting for approval…</p><div class="actions"><button data-action="open-device">Open verification page ↗</button><button data-action="cancel-login">Cancel</button></div>` : ""}<p class="help">Requires the Codex CLI on PATH. This app uses the CLI’s managed account, so sign-in/sign-out can affect other local Codex clients.</p><button class="text-button" data-action="refresh-account">Refresh connection ↻</button></div><div class="panel"><h2>Model & reasoning</h2><label for="settings-model">Default model</label><select id="settings-model">${modelOptions()}</select><label for="settings-effort">Default reasoning effort</label><select id="settings-effort">${effortOptions()}</select><p class="help">Models are discovered from your Codex account. Each run records the selected model and effort.</p><h3>Local library</h3><p class="help">${esc(state.dataRoot)}</p><p class="help">Projects and audit archives contain manuscript text. Selected documents and instructions are transmitted to Codex when you run a workflow. Journal selection also uses web search.</p></div></div>`;
 }
 async function openProject(id) {
   const data = await api("projectOpen", { projectId: id });
@@ -489,6 +538,69 @@ const actions = {
     render();
     toast("Restored as a new document version.");
   },
+  "graph-add": async () => {
+    const node = {
+      id: crypto.randomUUID(),
+      workflow: $("#graph-workflow").value,
+      instructions: "",
+    };
+    await saveGraph({ ...state.graph, nodes: [...state.graph.nodes, node] });
+  },
+  "graph-remove": async (el) => {
+    await saveGraph({
+      nodes: state.graph.nodes.filter((n) => n.id !== el.dataset.id),
+      edges: state.graph.edges.filter(
+        (e) => e.from !== el.dataset.id && e.to !== el.dataset.id,
+      ),
+    });
+  },
+  "graph-edit": (el) => {
+    const node = state.graph.nodes.find((n) => n.id === el.dataset.id);
+    showModal(
+      `<h2>Step instructions</h2><p class="help">Optional instructions are sent with this step. Other workflow settings use their defaults and project settings.</p><label for="graph-instructions">Additional instructions</label><textarea id="graph-instructions" rows="6">${esc(node.instructions || "")}</textarea><div class="modal-footer"><button data-action="close-modal">Cancel</button><button class="primary" data-action="graph-save-node" data-id="${esc(node.id)}">Save step</button></div>`,
+    );
+  },
+  "graph-save-node": async (el) => {
+    const nodes = state.graph.nodes.map((n) =>
+      n.id === el.dataset.id
+        ? { ...n, instructions: $("#graph-instructions").value }
+        : n,
+    );
+    await saveGraph({ ...state.graph, nodes });
+    closeModal();
+  },
+  "graph-connect": async () => {
+    const edge = {
+      from: $("#graph-from").value,
+      to: $("#graph-to").value,
+      type: $("#graph-type").value,
+    };
+    await saveGraph({ ...state.graph, edges: [...state.graph.edges, edge] });
+  },
+  "graph-disconnect": async (el) => {
+    await saveGraph({
+      ...state.graph,
+      edges: state.graph.edges.filter((_, i) => i !== Number(el.dataset.index)),
+    });
+  },
+  "graph-run": async () => {
+    state.model = $("#graph-model").value;
+    state.effort = $("#graph-effort").value;
+    normalizeEffort();
+    const execution = await api("graphStart", {
+      projectId: state.project.id,
+      documentIds: [...state.selected],
+      model: state.model,
+      effort: state.effort,
+    });
+    if (!state.graphExecution || state.graphExecution.id !== execution.id)
+      state.graphExecution = execution;
+    render();
+  },
+  "graph-stop": async () => {
+    await api("graphCancel");
+    toast("Stop requested.");
+  },
   workflow: (el) => {
     readDraft();
     state.workflow = el.dataset.id;
@@ -685,13 +797,13 @@ document.addEventListener("change", (event) => {
     state.runId = el.value;
     renderOutput();
   }
-  if (["run-model", "settings-model"].includes(el.id)) {
+  if (["run-model", "settings-model", "graph-model"].includes(el.id)) {
     readDraft();
     state.model = el.value;
     normalizeEffort();
     render();
   }
-  if (["run-effort", "settings-effort"].includes(el.id)) {
+  if (["run-effort", "settings-effort", "graph-effort"].includes(el.id)) {
     state.effort = el.value;
     normalizeEffort();
   }
@@ -711,6 +823,16 @@ document.addEventListener("change", (event) => {
     readDraft();
 });
 window.workbench.onEvent(async ({ type, data }) => {
+  if (type === "graph") {
+    state.graphExecution = data;
+    if (state.view === "graph" && state.project?.id === data.projectId)
+      render();
+    if (data.status !== "running")
+      toast(
+        `Graph ${data.status}.${data.error ? ` ${data.error}` : ""}`,
+        data.status === "failed",
+      );
+  }
   if (type === "run") {
     const terminal = !["running", "starting"].includes(data.run.status);
     state.active = terminal ? null : data;
