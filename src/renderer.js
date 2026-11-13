@@ -54,6 +54,7 @@ const state = {
   device: null,
 };
 let toastTimer, refreshTimer;
+let graphSource = null, graphZoom = 1, graphDrag = null, graphWireType = "output", graphScroll = { x: 0, y: 0 };
 function toast(message, error = false) {
   const el = $("#toast");
   el.textContent = message;
@@ -124,9 +125,12 @@ function readDraft() {
 }
 function render() {
   const p = state.project;
+  const previousCanvas = $(".graph-canvas");
+  if (previousCanvas) graphScroll = { x: previousCanvas.scrollLeft, y: previousCanvas.scrollTop };
   $("#app").innerHTML =
     `<div class="layout"><aside class="sidebar" id="sidebar"><button class="menu-close small" data-action="close-menu">Close menu ✕</button><div class="brand"><div class="brand-mark">p</div><span>Paper Workbench</span></div><button data-action="navigate" data-view="overview" class="${state.view === "overview" ? "active" : ""}"><span>◫</span> Workbench</button><button data-action="navigate" data-view="graph" class="${state.view === "graph" ? "active" : ""}" ${!p ? "disabled" : ""}><span>◇</span> Workflow graph</button><button data-action="navigate" data-view="documents" class="${state.view === "documents" ? "active" : ""}" ${!p ? "disabled" : ""}><span>▤</span> Documents</button><button data-action="navigate" data-view="history" class="${state.view === "history" ? "active" : ""}" ${!p ? "disabled" : ""}><span>◷</span> Run history</button><button data-action="navigate" data-view="audit" class="${state.view === "audit" ? "active" : ""}" ${!p ? "disabled" : ""}><span>☷</span> Audit trail</button><div class="sidebar-label">Your projects</div><div class="project-list">${state.projects.map((x) => `<button data-action="open-project" data-id="${x.id}" class="${p?.id === x.id ? "active" : ""}" title="${esc(x.name)}">${esc(x.name)}</button>`).join("")}</div><button class="new-project" data-action="new-project">＋ New project</button><div class="sidebar-bottom"><button data-action="navigate" data-view="settings" class="${state.view === "settings" ? "active" : ""}"><span class="account-dot ${state.account ? "online" : ""}"></span> ${state.account ? "Codex connected" : "Connect Codex"} <span>↗</span></button><div class="sidebar-footnote">Local projects. Traceable work.<br>Paper Workbench · v${esc(state.version)}</div></div></aside><main class="main"><header class="topbar"><button class="menu-toggle small" data-action="toggle-menu" aria-controls="sidebar" aria-expanded="false">☰ Menu</button><div class="breadcrumb"><span>Library</span><span>/</span><strong>${esc(p?.name || "Your next paper starts here")}</strong>${state.view === "workflow" ? `<span>/</span><span>${esc(state.workflows[state.workflow].title)}</span>` : ""}</div><div class="actions">${state.active ? '<button class="small" data-action="active-run">◌ Workflow running</button>' : ""}<span id="update-indicator"></span><span class="pill">${p ? "Project saved locally" : "Your research, in focus"}</span>${p ? '<button class="small secondary" data-action="project-settings" title="Project settings">Project settings</button>' : ""}</div></header><section class="content">${viewHTML()}</section></main></div>`;
   if (state.view === "workflow") renderOutput();
+  if (state.view === "graph" && state.project) { layoutGraph(); $(".graph-canvas").scrollTo(graphScroll.x, graphScroll.y); }
   renderUpdate();
 }
 function viewHTML() {
@@ -147,45 +151,81 @@ function graphHTML() {
       ? state.graphExecution
       : null;
   const running = execution?.status === "running";
-  const choices = graph.nodes
-    .map(
-      (n, i) =>
-        `<option value="${esc(n.id)}">${i + 1}. ${esc(state.workflows[n.workflow]?.title || n.workflow)}</option>`,
-    )
-    .join("");
-  const lines = graph.edges
-    .map((e) => {
-      const a = graph.nodes.findIndex((n) => n.id === e.from),
-        b = graph.nodes.findIndex((n) => n.id === e.to);
-      const x = 20 + graph.edges.indexOf(e) * 8;
-      return `<path d="M 0 ${a * 100 + 45} H ${x} V ${b * 100 + 45} H 0" class="${esc(e.type)}" />`;
-    })
-    .join("");
-  return `<div class="heading-row"><div><div class="eyebrow">Connect your work</div><h1>Workflow graph</h1><p class="muted">Build a sequence or branch steps. Connections control order and whether output is passed on.</p></div><button class="small" data-action="navigate" data-view="overview">← Workbench</button></div>
-  <div class="graph-layout"><div class="panel"><h3>Steps</h3><p class="help">Steps run one at a time after their dependencies finish. Independent steps run in their listed order.</p>
-  <div class="graph-canvas"><div class="graph-nodes">${
-    graph.nodes
-      .map((n, i) => {
-        const step = execution?.steps.find((s) => s.id === n.id);
-        return `<div class="graph-node"><span class="graph-num">${i + 1}</span><div><strong>${esc(state.workflows[n.workflow]?.title || n.workflow)}</strong><small>${n.instructions ? esc(n.instructions) : "Default settings"}</small>${step ? `<small>${esc(step.status)} ${step.runId ? `<button class="text-button" data-action="run-detail" data-id="${esc(step.runId)}">View run ↗</button>` : ""}</small>` : ""}</div><div class="graph-node-actions"><button class="small" data-action="graph-edit" data-id="${esc(n.id)}" ${running ? "disabled" : ""}>Edit</button><button class="small" data-action="graph-remove" data-id="${esc(n.id)}" ${running ? "disabled" : ""}>Remove</button></div></div>`;
-      })
-      .join("") || '<div class="empty">Add a workflow to begin.</div>'
-  }</div><svg class="graph-lines" width="${Math.max(60, 30 + graph.edges.length * 8)}" height="${graph.nodes.length * 100}" aria-hidden="true">${lines}</svg></div>
-  <label for="graph-workflow">Add a workflow</label><div class="actions"><select id="graph-workflow">${Object.entries(
-    state.workflows,
-  )
-    .map(([id, w]) => `<option value="${esc(id)}">${esc(w.title)}</option>`)
-    .join(
-      "",
-    )}</select><button data-action="graph-add" ${running ? "disabled" : ""}>＋ Add step</button></div>
-  <h3>Connections</h3>${graph.edges.map((e, i) => `<div class="graph-edge"><span>${esc(state.workflows[graph.nodes.find((n) => n.id === e.from)?.workflow]?.title)} → ${esc(state.workflows[graph.nodes.find((n) => n.id === e.to)?.workflow]?.title)} <small>(${e.type === "output" ? "pass output" : "order only"})</small></span><button class="small" data-action="graph-disconnect" data-index="${i}" ${running ? "disabled" : ""}>Remove</button></div>`).join("") || '<p class="help">No connections yet.</p>'}
-  <div class="graph-connect"><div><label for="graph-from">From</label><select id="graph-from">${choices}</select></div><div><label for="graph-to">To</label><select id="graph-to">${choices}</select></div><div><label for="graph-type">Connection</label><select id="graph-type"><option value="order">Order only</option><option value="output">Pass output</option></select></div><button data-action="graph-connect" ${running || graph.nodes.length < 2 ? "disabled" : ""}>Connect</button></div></div>
+  const disabled = running ? "disabled" : "";
+  return `<div class="heading-row"><div><div class="eyebrow">Connect your work</div><h1>Workflow graph</h1><p class="muted">Arrange steps and connect their sockets to build a workflow.</p></div><button class="small" data-action="navigate" data-view="overview">← Workbench</button></div>
+  <div class="graph-layout"><div class="graph-editor"><div class="graph-toolbar"><div class="graph-add"><select id="graph-workflow" aria-label="Workflow to add">${Object.entries(state.workflows).map(([id, w]) => `<option value="${esc(id)}">${esc(w.title)}</option>`).join("")}</select><button data-action="graph-add" ${disabled}>＋ Add step</button></div><div class="graph-tools"><label for="graph-type">Wire</label><select id="graph-type" aria-label="Connection type"><option value="output" ${graphWireType === "output" ? "selected" : ""}>Pass output</option><option value="order" ${graphWireType === "order" ? "selected" : ""}>Order only</option></select><button class="small" data-action="graph-zoom-out" aria-label="Zoom out">−</button><span class="graph-zoom">${Math.round(graphZoom * 100)}%</span><button class="small" data-action="graph-zoom-in" aria-label="Zoom in">＋</button><button class="small" data-action="graph-reset-view">Reset view</button></div></div>
+  <div class="graph-hint">${graphSource ? "Choose an input socket to connect, or press Escape to cancel." : "Drag nodes to arrange · select an output then an input to connect · drag the background to pan"}</div>
+  <div class="graph-canvas" tabindex="0" aria-label="Workflow graph canvas"><div class="graph-stage"><svg class="graph-lines" width="2400" height="1600" aria-hidden="true"></svg>${graph.nodes.map((n, i) => {
+    const step = execution?.steps.find((s) => s.id === n.id);
+    return `<article class="graph-node" data-node-id="${esc(n.id)}"><div class="graph-node-header" title="Drag to move"><span class="graph-node-icon">${esc(icons[n.workflow] || "✦")}</span><strong>${esc(state.workflows[n.workflow]?.title || n.workflow)}</strong><span class="graph-num">${String(i + 1).padStart(2, "0")}</span></div><div class="graph-node-body"><span>${n.instructions ? esc(n.instructions) : "Default settings"}</span>${step ? `<div class="graph-node-status">${esc(step.status)} ${step.runId ? `<button class="text-button" data-action="run-detail" data-id="${esc(step.runId)}">View run ↗</button>` : ""}</div>` : ""}<div class="graph-node-actions"><button class="small" data-action="graph-edit" data-id="${esc(n.id)}" ${disabled}>Edit</button><button class="small" data-action="graph-remove" data-id="${esc(n.id)}" ${disabled}>Remove</button></div></div><button class="graph-port input" data-action="graph-input" data-id="${esc(n.id)}" aria-label="Connect input of ${esc(state.workflows[n.workflow]?.title || n.workflow)}" title="Input" ${disabled}></button><button class="graph-port output ${graphSource === n.id ? "selected" : ""}" data-action="graph-output" data-id="${esc(n.id)}" aria-label="Connect output of ${esc(state.workflows[n.workflow]?.title || n.workflow)}" title="Output" ${disabled}></button></article>`;
+  }).join("")}${!graph.nodes.length ? '<div class="graph-empty"><strong>Start with a step</strong><span>Choose a workflow above to add your first node.</span></div>' : ""}</div></div>
+  <div class="graph-connections"><div><strong>Connections</strong><span class="help">Solid: pass output · dashed: order only</span></div>${graph.edges.map((e, i) => `<div class="graph-edge"><span>${esc(state.workflows[graph.nodes.find((n) => n.id === e.from)?.workflow]?.title)} → ${esc(state.workflows[graph.nodes.find((n) => n.id === e.to)?.workflow]?.title)} <small>(${e.type === "output" ? "pass output" : "order only"})</small></span><button class="small" data-action="graph-disconnect" data-index="${i}" ${disabled}>Remove</button></div>`).join("") || '<p class="help">No connections yet.</p>'}</div></div>
   <div class="panel"><h3>Run graph</h3><p class="help">Each step receives the selected source documents. Output connections also supply the upstream result as supporting material. Order-only connections do not pass output.</p>${state.documents.map((doc) => `<label class="doc-select"><input type="checkbox" data-document="${esc(doc.id)}" ${state.selected.has(doc.id) ? "checked" : ""}><span>${esc(doc.name)}<br><small>${esc(doc.role)} · v${doc.version}</small></span></label>`).join("") || '<p class="help">Add a manuscript first.</p>'}<label for="graph-model">Model</label><select id="graph-model">${modelOptions()}</select><label for="graph-effort">Reasoning effort</label><select id="graph-effort">${effortOptions()}</select><div class="run-controls">${running ? '<button data-action="graph-stop">Stop graph</button>' : `<button class="primary" data-action="graph-run" ${state.active || !state.account || !graph.nodes.length ? "disabled" : ""}>Run graph ↗</button>`}</div>${execution ? `<p class="help">Graph: ${esc(execution.status)}${execution.error ? ` · ${esc(execution.error)}` : ""}</p>` : ""}<p class="help">A failed or stopped step stops the graph. Each result and its prompt are saved in run history. Generated output needs review.</p></div></div>`;
 }
 async function saveGraph(graph) {
   state.graph = await api("graphSave", { projectId: state.project.id, graph });
   render();
 }
+function graphPosition(node, i) {
+  return { x: Number.isFinite(node.x) ? node.x : 100 + (i % 5) * 290, y: Number.isFinite(node.y) ? node.y : 100 + Math.floor(i / 5) * 180 };
+}
+function layoutGraph() {
+  const stage = $(".graph-stage"), svg = $(".graph-lines");
+  if (!stage || !svg) return;
+  stage.style.zoom = graphZoom;
+  state.graph.nodes.forEach((node, i) => {
+    const el = [...stage.querySelectorAll(".graph-node")].find((item) => item.dataset.nodeId === node.id);
+    const pos = graphPosition(node, i);
+    el.style.left = `${pos.x}px`; el.style.top = `${pos.y}px`;
+  });
+  svg.innerHTML = state.graph.edges.map((edge) => {
+    const ai = state.graph.nodes.findIndex((n) => n.id === edge.from), bi = state.graph.nodes.findIndex((n) => n.id === edge.to);
+    if (ai < 0 || bi < 0) return "";
+    const a = graphPosition(state.graph.nodes[ai], ai), b = graphPosition(state.graph.nodes[bi], bi);
+    const x1 = a.x + 220, y1 = a.y + 62, x2 = b.x, y2 = b.y + 62;
+    const bend = Math.max(70, Math.abs(x2 - x1) * 0.5);
+    return `<path class="${esc(edge.type)}" d="M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}" />`;
+  }).join("");
+}
+function setGraphZoom(value) {
+  graphZoom = Math.max(0.5, Math.min(1.5, Math.round(value * 10) / 10));
+  layoutGraph();
+  const label = $(".graph-zoom"); if (label) label.textContent = `${Math.round(graphZoom * 100)}%`;
+}
+document.addEventListener("pointerdown", (event) => {
+  const canvas = event.target.closest(".graph-canvas");
+  if (!canvas || event.button !== 0) return;
+  const header = event.target.closest(".graph-node-header");
+  if (header && !(state.graphExecution?.projectId === state.project.id && state.graphExecution?.status === "running")) {
+    const id = header.closest(".graph-node").dataset.nodeId;
+    const index = state.graph.nodes.findIndex((n) => n.id === id);
+    const pos = graphPosition(state.graph.nodes[index], index);
+    graphDrag = { kind: "node", id, startX: event.clientX, startY: event.clientY, x: pos.x, y: pos.y, moved: false };
+  } else if (event.target === canvas || event.target.classList.contains("graph-stage") || event.target.classList.contains("graph-lines")) {
+    graphDrag = { kind: "pan", startX: event.clientX, startY: event.clientY, x: canvas.scrollLeft, y: canvas.scrollTop };
+  } else return;
+  canvas.setPointerCapture(event.pointerId); event.preventDefault();
+});
+document.addEventListener("pointermove", (event) => {
+  if (!graphDrag) return;
+  const canvas = $(".graph-canvas"); if (!canvas) return;
+  const dx = event.clientX - graphDrag.startX, dy = event.clientY - graphDrag.startY;
+  if (graphDrag.kind === "pan") { canvas.scrollLeft = graphDrag.x - dx; canvas.scrollTop = graphDrag.y - dy; return; }
+  if (Math.abs(dx) + Math.abs(dy) > 2) graphDrag.moved = true;
+  const node = state.graph.nodes.find((n) => n.id === graphDrag.id);
+  if (!node) return;
+  node.x = Math.max(0, Math.min(2180, Math.round(graphDrag.x + dx / graphZoom)));
+  node.y = Math.max(0, Math.min(1450, Math.round(graphDrag.y + dy / graphZoom)));
+  layoutGraph();
+});
+document.addEventListener("pointerup", async () => {
+  if (!graphDrag) return;
+  const drag = graphDrag; graphDrag = null;
+  if (drag.kind === "node" && drag.moved) {
+    try { state.graph = await api("graphSave", { projectId: state.project.id, graph: state.graph }); }
+    catch (e) { toast(e.message, true); await refreshProject(); render(); }
+  }
+});
 function onboardingHTML() {
   return `<div class="onboarding"><div class="eyebrow">From first draft to final response</div><h1>Papers.<br>Work in progress.</h1><div class="intro"><p>Manuscripts, ${Object.keys(state.workflows).length} workflows, and a complete record of what you ran.</p><button class="primary" data-action="new-project">Create your first project ↗</button></div><button class="secondary" data-action="new-custom-workflow">＋ Create workflow</button><div class="grid">${Object.entries(
     state.workflows,
@@ -355,6 +395,9 @@ function renderUpdate() {
   settings.innerHTML = `<p class="help">${labels[update.status] || ""}</p>${update.status === "ready" ? '<button class="primary" data-action="update-install">Restart and install update</button>' : update.status === "unavailable" ? "" : `<button class="small" data-action="update-check" ${["checking", "downloading"].includes(update.status) ? "disabled" : ""}>Check for updates</button>`}`;
 }
 async function openProject(id) {
+  graphSource = null; graphScroll = { x: 0, y: 0 };
+  const canvas = $(".graph-canvas");
+  if (canvas) canvas.scrollTo(0, 0);
   const data = await api("projectOpen", { projectId: id });
   Object.assign(state, data);
   state.selected = new Set(data.documents.map((d) => d.id));
@@ -597,14 +640,23 @@ const actions = {
     toast("Restored as a new document version.");
   },
   "graph-add": async () => {
+    let slot = 0;
+    while (state.graph.nodes.some((node, i) => {
+      const pos = graphPosition(node, i);
+      const x = 100 + (slot % 5) * 290, y = 100 + Math.floor(slot / 5) * 180;
+      return Math.abs(pos.x - x) < 220 && Math.abs(pos.y - y) < 150;
+    })) slot++;
     const node = {
       id: crypto.randomUUID(),
       workflow: $("#graph-workflow").value,
       instructions: "",
+      x: 100 + (slot % 5) * 290,
+      y: 100 + Math.floor(slot / 5) * 180,
     };
     await saveGraph({ ...state.graph, nodes: [...state.graph.nodes, node] });
   },
   "graph-remove": async (el) => {
+    if (graphSource === el.dataset.id) graphSource = null;
     await saveGraph({
       nodes: state.graph.nodes.filter((n) => n.id !== el.dataset.id),
       edges: state.graph.edges.filter(
@@ -627,14 +679,20 @@ const actions = {
     await saveGraph({ ...state.graph, nodes });
     closeModal();
   },
-  "graph-connect": async () => {
-    const edge = {
-      from: $("#graph-from").value,
-      to: $("#graph-to").value,
-      type: $("#graph-type").value,
-    };
-    await saveGraph({ ...state.graph, edges: [...state.graph.edges, edge] });
+  "graph-output": (el) => {
+    graphSource = graphSource === el.dataset.id ? null : el.dataset.id;
+    render();
   },
+  "graph-input": async (el) => {
+    if (!graphSource) return toast("Select an output socket first.");
+    const edge = { from: graphSource, to: el.dataset.id, type: $("#graph-type").value };
+    await saveGraph({ ...state.graph, edges: [...state.graph.edges, edge] });
+    graphSource = null;
+    render();
+  },
+  "graph-zoom-in": () => setGraphZoom(graphZoom + 0.1),
+  "graph-zoom-out": () => setGraphZoom(graphZoom - 0.1),
+  "graph-reset-view": () => { graphZoom = 1; const canvas = $(".graph-canvas"); canvas.scrollTo(0, 0); setGraphZoom(1); },
   "graph-disconnect": async (el) => {
     await saveGraph({
       ...state.graph,
@@ -837,6 +895,7 @@ document.addEventListener("click", async (event) => {
   }
 });
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && graphSource) { graphSource = null; render(); }
   if (event.key === "Escape" && $(".layout.menu-open")) {
     $(".layout").classList.remove("menu-open");
     const toggle = $(".menu-toggle");
@@ -846,6 +905,7 @@ document.addEventListener("keydown", (event) => {
 });
 document.addEventListener("change", (event) => {
   const el = event.target;
+  if (el.id === "graph-type") graphWireType = el.value;
   if (el.dataset.document) {
     if (el.checked) state.selected.add(el.dataset.document);
     else state.selected.delete(el.dataset.document);

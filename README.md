@@ -26,6 +26,8 @@ Use **Create workflow** on the workbench to add your own title, prompt, optional
 
 Open **Workflow graph** in a project to add workflow steps and connect them. An **Order only** connection waits for the earlier step without including its output; a **Pass output** connection also supplies the earlier result as supporting text. Branches and multiple inputs are supported. Steps execute one at a time in dependency order, and independent steps follow their order in the editor. Cycles are rejected. The graph is saved with the project.
 
+Drag a step by its header to arrange the canvas. Choose a wire type, select a step's output socket, then select another step's input socket to connect them. Press Escape to cancel a pending connection. Drag the background to pan, or use the toolbar to zoom and reset the view. Connections can be removed in the list below the canvas.
+
 Choose the source documents, model and reasoning effort before running. Every step receives the selected document versions, plus outputs from its incoming Pass output connections. Steps use their workflow defaults and project settings; optional per-step instructions can be edited in the graph. A failure, interruption, empty required output, or cancellation stops the remaining steps. Each completed or partial run remains in history with its prompt, output, graph execution ID, and upstream run IDs. Automatic outputs are unreviewed and are passed as supporting material, not saved as new manuscript versions. Graphs run while the application is open and do not resume automatically after a restart.
 
 ## Run

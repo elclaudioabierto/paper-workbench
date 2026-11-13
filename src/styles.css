@@ -1212,3 +1212,67 @@ details {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* Spatial workflow editor */
+.graph-layout { grid-template-columns: minmax(0, 1fr) 290px; }
+.graph-editor { min-width: 0; overflow: hidden; border: 1px solid #3d4145; border-radius: 10px; background: #25292d; color: #e8e6e0; }
+.graph-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 12px; background: #30353a; }
+.graph-add, .graph-tools { display: flex; align-items: center; gap: 6px; }
+.graph-toolbar select { width: auto; max-width: 200px; margin: 0; }
+.graph-toolbar label { margin: 0; font-size: 12px; color: #d4d5d3; }
+.graph-toolbar button { white-space: nowrap; }
+.graph-zoom { min-width: 40px; text-align: center; font-size: 12px; }
+.graph-hint { padding: 8px 14px; color: #bfc5c5; font-size: 12px; background: #292d31; }
+.graph-canvas { display: block; position: relative; height: 560px; margin: 0; overflow: auto; cursor: grab; background-color: #25292d; background-image: radial-gradient(#42484c 1px, transparent 1px); background-size: 20px 20px; }
+.graph-canvas:active { cursor: grabbing; }
+.graph-stage { position: relative; width: 2400px; height: 1600px; }
+.graph-lines { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.graph-lines path { stroke: #b6a990; stroke-width: 3; stroke-dasharray: 7 5; }
+.graph-lines path.output { stroke: #e5a760; stroke-dasharray: none; }
+.graph-node { position: absolute; display: block; width: 220px; height: auto; min-height: 125px; margin: 0; padding: 0; border: 1px solid #657077; border-radius: 7px; background: #363c41; color: #eee; box-shadow: 0 5px 14px #0005; }
+.graph-node-header { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 8px 10px; background: #555f64; border-radius: 6px 6px 0 0; cursor: move; touch-action: none; }
+.graph-node-header strong { flex: 1; font-size: 13px; line-height: 1.2; }
+.graph-node-icon { color: #f4c283; font-weight: bold; }
+.graph-num { color: #d3d8d8; font-size: 11px; }
+.graph-node-body { padding: 10px 12px; color: #d4d8d8; font-size: 12px; overflow-wrap: anywhere; }
+.graph-node-body > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.graph-node-status { margin-top: 5px; }
+.graph-node-actions { display: flex; gap: 5px; margin-top: 8px; }
+.graph-node-actions button { padding: 4px 8px; font-size: 11px; }
+.graph-port { position: absolute; top: 54px; width: 16px; height: 16px; padding: 0; border: 2px solid #25292d; border-radius: 50%; background: #e5a760; box-shadow: 0 0 0 1px #edc597; }
+.graph-port:hover, .graph-port:focus-visible, .graph-port.selected { background: #fff2d7; box-shadow: 0 0 0 3px #e5a76088; }
+.graph-port.input { left: -8px; } .graph-port.output { right: -8px; }
+.graph-empty { position: absolute; top: 120px; left: 100px; display: grid; gap: 6px; color: #c6ccca; }
+.graph-empty strong { color: white; font-size: 18px; }
+.graph-connections { padding: 14px; background: #f7f5f0; color: #282c2b; }
+.graph-connections > div:first-child { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.graph-connections p { margin-bottom: 0; }
+@media (max-width: 1100px) { .graph-layout { grid-template-columns: 1fr; } }
+
+/* Keep controls reachable in narrow and short application windows. */
+@media (max-width: 600px) {
+  .topbar { align-items: center; }
+  .breadcrumb { flex: 1 1 140px; }
+  .topbar .actions { flex: 1 1 100%; }
+  .content { padding: 18px 14px; }
+  .stats { flex-wrap: wrap; gap: 8px 18px; }
+  .panel { padding: 16px; min-width: 0; }
+  .heading-row > *, .doc-card > *, .run-row > * { min-width: 0; }
+  .heading-row .actions, .doc-card .actions { width: 100%; }
+  .heading-row .actions button, .doc-card .actions button { flex: 1 1 auto; }
+  .workflow-card { min-height: 0; padding: 20px; }
+  .card-top { margin-bottom: 14px; }
+  .workflow-card p { padding-right: 20px; }
+  .graph-toolbar { justify-content: flex-start; }
+  .graph-add, .graph-tools { flex-wrap: wrap; min-width: 0; }
+  .graph-add { width: 100%; }
+  .graph-add select { flex: 1 1 130px; min-width: 0; }
+  .graph-canvas { height: clamp(300px, 60vh, 480px); }
+  .graph-empty { left: 30px; max-width: 220px; }
+  .output-toolbar { flex-wrap: wrap; }
+  .output-toolbar select { max-width: 100%; }
+  dialog { width: calc(100vw - 24px); }
+  .modal-body { padding: 16px; }
+  .modal-footer button { flex: 1 1 auto; }
+  .modal-body .wide-editor { min-height: 30vh; }
+}

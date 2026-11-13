@@ -715,8 +715,8 @@ else {
     win = new BrowserWindow({
       width: 1460,
       height: 960,
-      minWidth: 480,
-      minHeight: 480,
+      minWidth: 320,
+      minHeight: 360,
       title: "Paper Workbench",
       icon: path.join(__dirname, "icon.png"),
       icon: path.join(__dirname, "icon.png"),

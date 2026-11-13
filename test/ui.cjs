@@ -38,6 +38,29 @@ const assert = require("node:assert/strict");
     await page
       .getByRole("button", { name: "Create project ↗", exact: true })
       .click();
+    await page.getByRole("button", { name: "Workflow graph" }).click();
+    await page.getByRole("button", { name: "Add step" }).click();
+    await page.locator(".graph-node").first().waitFor();
+    await page.locator("#graph-workflow").selectOption({ index: 1 });
+    await page.getByRole("button", { name: "Add step" }).click();
+    await page.locator(".graph-node").nth(1).waitFor();
+    const firstNode = page.locator(".graph-node").first();
+    const header = firstNode.locator(".graph-node-header");
+    const box = await header.boundingBox();
+    await page.mouse.move(box.x + 40, box.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 100, box.y + 50, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    const movedLeft = await firstNode.evaluate((el) => el.style.left);
+    assert.equal(movedLeft, "160px");
+    await page.locator(".graph-node .output").first().click();
+    await page.locator(".graph-node .input").nth(1).click();
+    await page.locator(".graph-lines path.output").waitFor();
+    await page.getByRole("button", { name: "← Workbench", exact: true }).click();
+    await page.getByRole("button", { name: "Workflow graph" }).click();
+    assert.equal(await page.locator(".graph-node").first().evaluate((el) => el.style.left), movedLeft);
+    assert.equal(await page.locator(".graph-lines path.output").count(), 1);
     await page.getByRole("button", { name: "Connect Codex" }).click();
     await page.getByRole("heading", { name: "Need to install Codex?" }).waitFor();
     await page.getByText("Updates are available in installed builds.").waitFor();
@@ -313,6 +336,14 @@ const assert = require("node:assert/strict");
       await page.getByRole("button", { name: "Save settings" }).isVisible(),
       true,
     );
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await page.setViewportSize({ width: 360, height: 480 });
+    await page.getByRole("button", { name: "☰ Menu" }).click();
+    await page.getByRole("button", { name: "Workflow graph" }).click();
+    assert.equal(await page.locator(".graph-toolbar").evaluate((el) => el.scrollWidth <= el.clientWidth), true);
+    assert.equal(await page.locator(".content").evaluate((el) => el.scrollWidth <= el.clientWidth), true);
+    await page.getByRole("button", { name: "Project settings" }).click();
+    assert.equal(await page.getByRole("button", { name: "Save settings" }).isVisible(), true);
     await page.getByRole("button", { name: "Cancel" }).click();
     assert.deepEqual(errors, []);
     console.log(

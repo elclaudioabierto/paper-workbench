@@ -44,17 +44,12 @@ const assert = require("node:assert/strict");
     await page.getByRole("button", { name: "＋ Add step" }).click();
     await page.locator("#graph-workflow").selectOption("presentation");
     await page.getByRole("button", { name: "＋ Add step" }).click();
-    const options = await page
-      .locator("#graph-from option")
-      .evaluateAll((els) => els.map((e) => e.value));
-    await page.locator("#graph-from").selectOption(options[0]);
-    await page.locator("#graph-to").selectOption(options[1]);
     await page.locator("#graph-type").selectOption("order");
-    await page.getByRole("button", { name: "Connect", exact: true }).click();
-    await page.locator("#graph-from").selectOption(options[1]);
-    await page.locator("#graph-to").selectOption(options[2]);
+    await page.locator(".graph-node .output").nth(0).click();
+    await page.locator(".graph-node .input").nth(1).click();
     await page.locator("#graph-type").selectOption("output");
-    await page.getByRole("button", { name: "Connect", exact: true }).click();
+    await page.locator(".graph-node .output").nth(1).click();
+    await page.locator(".graph-node .input").nth(2).click();
     await page.getByRole("button", { name: "Run graph" }).click();
     await page.getByText("Graph: completed").waitFor({ timeout: 30000 });
     const data = await page.evaluate(async () => {

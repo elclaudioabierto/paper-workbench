@@ -1,6 +1,28 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { createHash } = require("node:crypto");
+let pdfjsPromise;
+function loadPdfJs() {
+  if (!pdfjsPromise) {
+    // PDF.js eagerly loads the native canvas addon even for text extraction.
+    // That addon can terminate Electron while initializing. Supply its pure JS
+    // geometry implementation during module initialization; no rendering is used.
+    const canvasPath = require.resolve("@napi-rs/canvas");
+    const previous = require.cache[canvasPath];
+    const shim = new (require("node:module"))(canvasPath);
+    shim.filename = canvasPath;
+    shim.loaded = true;
+    shim.exports = require("@napi-rs/canvas/geometry");
+    require.cache[canvasPath] = shim;
+    pdfjsPromise = import("pdfjs-dist/legacy/build/pdf.mjs").finally(() => {
+      if (require.cache[canvasPath] === shim) {
+        if (previous) require.cache[canvasPath] = previous;
+        else delete require.cache[canvasPath];
+      }
+    });
+  }
+  return pdfjsPromise;
+}
 async function extract(file) {
   const buffer = await fs.readFile(file);
   if (buffer.length > 30 * 1024 * 1024)
@@ -17,13 +39,14 @@ async function extract(file) {
       ).value,
     );
   else if (ext === ".pdf") {
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const pdf = await pdfjs.getDocument({
+    const pdfjs = await loadPdfJs();
+    const task = pdfjs.getDocument({
       data: new Uint8Array(buffer),
       useSystemFonts: true,
       isEvalSupported: false,
-    }).promise;
+    });
     try {
+      const pdf = await task.promise;
       const pages = [];
       for (let n = 1; n <= pdf.numPages; n++) {
         const page = await pdf.getPage(n);
@@ -34,7 +57,7 @@ async function extract(file) {
       }
       text = pages.join("\n\n");
     } finally {
-      await pdf.destroy();
+      await task.destroy();
     }
   } else if ([".txt", ".md", ".markdown", ".csv"].includes(ext))
     text = buffer.toString("utf8");
